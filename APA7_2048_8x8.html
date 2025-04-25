@@ -1,0 +1,496 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APA7文獻搜索 2048 (8x8)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 560px;
+            padding: 16px;
+        }
+        .title {
+            font-size: 1.75rem;
+            font-weight: bold;
+            margin-bottom: 16px;
+        }
+        .score-container {
+            background-color: #e5e7eb;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .score-text {
+            font-weight: bold;
+        }
+        .reset-button {
+            background-color: #3b82f6;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .reset-button:hover {
+            background-color: #2563eb;
+        }
+        .message {
+            margin-top: 16px;
+            padding: 8px;
+            background-color: #fef3c7;
+            border-radius: 4px;
+            text-align: center;
+            width: 100%;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 4px;
+            background-color: #d1d5db;
+            padding: 4px;
+            border-radius: 8px;
+            width: 100%;
+            aspect-ratio: 1/1;
+        }
+        .tile {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3px;
+            border-radius: 4px;
+            aspect-ratio: 1/1;
+            transition: all 0.1s;
+            font-size: 12px;
+            font-weight: 500;
+            text-align: center;
+            line-height: 1.2;
+        }
+        .tile-empty {
+            background-color: #f3f4f6;
+        }
+        .tile-0 { background-color: #dbeafe; }
+        .tile-1 { background-color: #bfdbfe; }
+        .tile-2 { background-color: #93c5fd; }
+        .tile-3 { background-color: #60a5fa; }
+        .tile-4 { background-color: #d1fae5; }
+        .tile-5 { background-color: #a7f3d0; }
+        .tile-6 { background-color: #6ee7b7; }
+        .tile-7 { background-color: #34d399; }
+        .tile-8 { background-color: #fef9c3; }
+        .tile-9 { background-color: #fef08a; }
+        .tile-10 { background-color: #fde047; }
+        .tile-11 { background-color: #facc15; }
+        .tile-12 { background-color: #ffedd5; }
+        .tile-13 { background-color: #fed7aa; }
+        .instructions {
+            margin-top: 16px;
+            font-size: 1rem;
+            text-align: center;
+        }
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 16px;
+        }
+        .celebration {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            font-size: 1.25rem;
+            font-weight: bold;
+            text-align: center;
+            animation: celebrate 3s ease-in-out forwards;
+            z-index: 1000;
+        }
+        .celebration-6 { background-color: rgba(110, 231, 183, 0.9); }
+        .celebration-7 { background-color: rgba(52, 211, 153, 0.9); }
+        .celebration-8 { background-color: rgba(254, 249, 195, 0.9); }
+        .celebration-9 { background-color: rgba(254, 240, 138, 0.9); }
+        .celebration-10 { background-color: rgba(253, 224, 71, 0.9); }
+        .celebration-11 { background-color: rgba(250, 204, 21, 0.9); }
+        .celebration-12 { background-color: rgba(255, 237, 213, 0.9); }
+        .celebration-13 { background-color: rgba(254, 215, 170, 0.9); }
+        @keyframes celebrate {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            10% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            90% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const Game2048 = () => {
+            const GRID_SIZE = 8;
+            const CELL_COUNT = GRID_SIZE * GRID_SIZE;
+
+            const RESEARCH_STEPS = [
+                { number: 1, text: "找3年內經驗研究" },
+                { number: 2, text: "找中英文頂尖期刊" },
+                { number: 3, text: "數位找SSCI、SCI、IEEE、TSSCI" },
+                { number: 4, text: "找DV" },
+                { number: 5, text: "找IV" },
+                { number: 6, text: "找DV on IV" },
+                { number: 7, text: "找白期刊" },
+                { number: 8, text: "檢查灰期刊" },
+                { number: 9, text: "避開掠奪性期刊" },
+                { number: 10, text: "避開爭議刊商" },
+                { number: 11, text: "提案前提案後" },
+                { number: 12, text: "口考前口考後" },
+                { number: 13, text: "遞交學位論文前" },
+                { number: 14, text: "遞交最終版期刊論文前" }
+            ];
+
+            const [board, setBoard] = useState([]);
+            const [score, setScore] = useState(0);
+            const [gameOver, setGameOver] = useState(false);
+            const [hasWon, setHasWon] = useState(false);
+            const [message, setMessage] = useState("");
+            const [touchStart, setTouchStart] = useState(null);
+            const [hasReachedLevels, setHasReachedLevels] = useState(Array(RESEARCH_STEPS.length).fill(false));
+            const [currentCelebrationLevel, setCurrentCelebrationLevel] = useState(null);
+
+            useEffect(() => {
+                resetGame();
+            }, []);
+
+            const resetGame = () => {
+                let newBoard = Array(CELL_COUNT).fill(null);
+                newBoard = addRandomTile(newBoard);
+                newBoard = addRandomTile(newBoard);
+                setBoard(newBoard);
+                setScore(0);
+                setGameOver(false);
+                setHasWon(false);
+                setMessage("");
+                setHasReachedLevels(Array(RESEARCH_STEPS.length).fill(false));
+                setCurrentCelebrationLevel(null);
+            };
+
+            const addRandomTile = (currentBoard) => {
+                const emptyCells = currentBoard
+                    .map((cell, index) => cell === null ? index : null)
+                    .filter(index => index !== null);
+                if (emptyCells.length === 0) return currentBoard;
+                const randomIndex = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                const newBoard = [...currentBoard];
+                newBoard[randomIndex] = Math.random() < 0.9 ? 0 : 1;
+                return newBoard;
+            };
+
+            const checkGameOver = (board) => {
+                if (board.includes(null)) return false;
+                for (let i = 0; i < GRID_SIZE; i++) {
+                    for (let j = 0; j < GRID_SIZE - 1; j++) {
+                        const cellIndex = i * GRID_SIZE + j;
+                        const nextCellIndex = cellIndex + 1;
+                        if (board[cellIndex] === board[nextCellIndex]) return false;
+                        const cellIndexVert = j * GRID_SIZE + i;
+                        const nextCellIndexVert = cellIndexVert + GRID_SIZE;
+                        if (nextCellIndexVert < CELL_COUNT && board[cellIndexVert] === board[nextCellIndexVert]) return false;
+                    }
+                }
+                return true;
+            };
+
+            const checkWin = (board) => {
+                return board.some(cell => cell !== null && cell >= RESEARCH_STEPS.length - 1);
+            };
+
+            const checkLevelReached = (board) => {
+                for (let level = 6; level < RESEARCH_STEPS.length; level++) { // Start at level 7 (index 6)
+                    if (!hasReachedLevels[level] && board.some(cell => cell !== null && cell === level)) {
+                        return level;
+                    }
+                }
+                return null;
+            };
+
+            const moveTiles = (direction) => {
+                if (gameOver) return;
+                const rowIndices = Array.from({ length: GRID_SIZE }, (_, i) => i);
+                const colIndices = Array.from({ length: GRID_SIZE }, (_, i) => i);
+                let newBoard = [...board];
+                let hasMoved = false;
+                let newScore = score;
+
+                const rowTraversal = [...rowIndices];
+                const colTraversal = [...colIndices];
+                if (direction === 'right' || direction === 'down') {
+                    rowTraversal.reverse();
+                    colTraversal.reverse();
+                }
+
+                if (direction === 'left' || direction === 'right') {
+                    for (const i of rowIndices) {
+                        const row = [];
+                        for (const j of colIndices) {
+                            row.push(newBoard[i * GRID_SIZE + j]);
+                        }
+                        const { newRow, scoreIncrease, moved } = slideAndMerge(row, direction === 'right');
+                        for (const j of colIndices) {
+                            newBoard[i * GRID_SIZE + j] = newRow[j];
+                        }
+                        newScore += scoreIncrease;
+                        hasMoved = hasMoved || moved;
+                    }
+                } else {
+                    for (const j of colIndices) {
+                        const col = [];
+                        for (const i of rowIndices) {
+                            col.push(newBoard[i * GRID_SIZE + j]);
+                        }
+                        const { newRow: newCol, scoreIncrease, moved } = slideAndMerge(col, direction === 'down');
+                        for (const i of rowIndices) {
+                            newBoard[i * GRID_SIZE + j] = newCol[i];
+                        }
+                        newScore += scoreIncrease;
+                        hasMoved = hasMoved || moved;
+                    }
+                }
+
+                if (hasMoved) {
+                    newBoard = addRandomTile(newBoard);
+                    setBoard(newBoard);
+                    setScore(newScore);
+                    if (checkWin(newBoard) && !hasWon) {
+                        setHasWon(true);
+                        setMessage("恭喜! 您已完成APA7文獻搜索流程!");
+                    }
+                    const reachedLevel = checkLevelReached(newBoard);
+                    if (reachedLevel !== null) {
+                        const newHasReachedLevels = [...hasReachedLevels];
+                        newHasReachedLevels[reachedLevel] = true;
+                        setHasReachedLevels(newHasReachedLevels);
+                        setCurrentCelebrationLevel(reachedLevel);
+                        setTimeout(() => setCurrentCelebrationLevel(null), 3000);
+                    }
+                    if (checkGameOver(newBoard)) {
+                        setGameOver(true);
+                        setMessage("遊戲結束! 按 '重新開始' 再試一次");
+                    }
+                }
+            };
+
+            const slideAndMerge = (line, reverse) => {
+                let filteredLine = line.filter(tile => tile !== null);
+                if (reverse) filteredLine.reverse();
+                let newLine = [];
+                let scoreIncrease = 0;
+                let moved = filteredLine.length !== line.length || filteredLine.some((val, idx) => val !== line[idx]);
+                for (let i = 0; i < filteredLine.length; i++) {
+                    if (i < filteredLine.length - 1 && filteredLine[i] === filteredLine[i + 1]) {
+                        const mergedValue = filteredLine[i] + 1;
+                        newLine.push(mergedValue);
+                        scoreIncrease += (mergedValue + 1) * 10;
+                        i++;
+                        moved = true;
+                    } else {
+                        newLine.push(filteredLine[i]);
+                    }
+                }
+                while (newLine.length < GRID_SIZE) {
+                    newLine.push(null);
+                }
+                if (reverse) newLine.reverse();
+                return { newRow: newLine, scoreIncrease, moved };
+            };
+
+            useEffect(() => {
+                const handleKeyDown = (e) => {
+                    if (gameOver && e.key !== 'r') return;
+                    switch(e.key) {
+                        case 'ArrowUp':
+                            moveTiles('up');
+                            break;
+                        case 'ArrowDown':
+                            moveTiles('down');
+                            break;
+                        case 'ArrowLeft':
+                            moveTiles('left');
+                            break;
+                        case 'ArrowRight':
+                            moveTiles('right');
+                            break;
+                        case 'r':
+                            resetGame();
+                            break;
+                        default:
+                            break;
+                    }
+                };
+                window.addEventListener('keydown', handleKeyDown);
+                return () => {
+                    window.removeEventListener('keydown', handleKeyDown);
+                };
+            }, [board, gameOver]);
+
+            const handleTouchStart = (e) => {
+                const touch = e.touches[0];
+                setTouchStart({ x: touch.clientX, y: touch.clientY });
+            };
+
+            const handleTouchEnd = (e) => {
+                if (!touchStart) return;
+                const touch = e.changedTouches[0];
+                const diffX = touch.clientX - touchStart.x;
+                const diffY = touch.clientY - touchStart.y;
+                if (Math.abs(diffX) > Math.abs(diffY)) {
+                    if (diffX > 20) {
+                        moveTiles('right');
+                    } else if (diffX < -20) {
+                        moveTiles('left');
+                    }
+                } else {
+                    if (diffY > 20) {
+                        moveTiles('down');
+                    } else if (diffY < -20) {
+                        moveTiles('up');
+                    }
+                }
+                setTouchStart(null);
+            };
+
+            const getTileClass = (value) => {
+                return value !== null ? `tile tile-${value}` : 'tile tile-empty';
+            };
+
+            const getCelebrationMessage = (level) => {
+                const stepsLeft = RESEARCH_STEPS.length - 1 - level;
+                switch (level) {
+                    case 6:
+                        return `太棒了！您到達第7關：找白期刊！還有${stepsLeft}關！`;
+                    case 7:
+                        return `超讚！您到達第8關：檢查灰期刊！還有${stepsLeft}關！`;
+                    case 8:
+                        return `幹得好！您到達第9關：避開掠奪性期刊！還有${stepsLeft}關！`;
+                    case 9:
+                        return `了不起！您到達第10關：避開爭議刊商！還有${stepsLeft}關！`;
+                    case 10:
+                        return `非常棒！您到達第11關：提案前提案後！還有${stepsLeft}關！`;
+                    case 11:
+                        return `快成功了！您到達第12關：口考前口考後！還有${stepsLeft}關！`;
+                    case 12:
+                        return `幾乎到頂了！您到達第13關：遞交學位論文前！還有${stepsLeft}關！`;
+                    case 13:
+                        return `恭喜！您到達第14關：遞交最終版期刊論文前！您完成了！`;
+                    default:
+                        return "";
+                }
+            };
+
+            return (
+                <div className="container">
+                    <h1 className="title">APA7文獻搜索 2048 (8x8)</h1>
+                    <div className="flex-between">
+                        <div className="score-container">
+                            <p className="score-text">分數: {score}</p>
+                        </div>
+                        <button onClick={resetGame} className="reset-button">
+                            重新開始
+                        </button>
+                    </div>
+                    {message && (
+                        <div className="message">
+                            {message}
+                        </div>
+                    )}
+                    {currentCelebrationLevel !== null && (
+                        <div className={`celebration celebration-${currentCelebrationLevel}`}>
+                            {getCelebrationMessage(currentCelebrationLevel)}
+                        </div>
+                    )}
+                    <div
+                        className="grid"
+                        onTouchStart={handleTouchStart}
+                        onTouchEnd={handleTouchEnd}
+                    >
+                        {board.map((tile, index) => (
+                            <div
+                                key={index}
+                                className={getTileClass(tile)}
+                            >
+                                {tile !== null && (
+                                    <div>
+                                        <p>{RESEARCH_STEPS[tile].number}.</p>
+                                        <p>{RESEARCH_STEPS[tile].text}</p>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                    <div className="instructions">
+                        <p>使用方向鍵或滑動來移動方塊</p>
+                        <p>合併相同的研究步驟以推進您的研究方法流程!</p>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<Game2048 />, document.getElementById('root'));
+    </script>
+</body>
+</html>
