@@ -1,150 +1,206 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>APA7 2048 Games</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            background-color: #f0f0f0;
-        }
-        .container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-            max-width: 600px;
-            padding: 20px;
-            background-color: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .title {
-            font-size: 1.75rem;
-            font-weight: bold;
-            margin-bottom: 20px;
-            color: #1f2937;
-        }
-        .game-list {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-        .game-item {
-            background-color: #f3f4f6;
-            padding: 16px;
-            border-radius: 4px;
-            text-align: center;
-        }
-        .game-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: #374151;
-        }
-        .game-description {
-            font-size: 1rem;
-            color: #4b5563;
-            margin-bottom: 12px;
-        }
-        .game-button {
-            display: inline-block;
-            background-color: #3b82f6;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 4px;
-            text-decoration: none;
-            font-size: 1rem;
-            font-weight: 500;
-            transition: background-color 0.2s;
-        }
-        .game-button:hover {
-            background-color: #2563eb;
-        }
-        .instructions {
-            margin-top: 20px;
-            font-size: 1rem;
-            color: #4b5563;
-            text-align: center;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <title>學術英文遊戲化學習 Gamification of EAP</title>
+  <style>
+    /* Global */
+    body {
+      font-family: sans-serif;
+      background: #faf8ef;
+      margin: 0;
+      padding: 20px;
+      line-height: 1.4;
+    }
+    nav {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    nav a {
+      margin: 0 10px;
+      text-decoration: none;
+      color: #3498db;
+      font-weight: bold;
+    }
+    h2, h1 {
+      text-align: center;
+      margin-top: 40px;
+    }
+
+    /* 2048 Game Styles */
+    #game {
+      position: relative;
+      width: 500px;
+      height: 500px;
+      background: #bbada0;
+      border-radius: 6px;
+      padding: 10px;
+      box-sizing: border-box;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      grid-gap: 10px;
+      margin: 0 auto 40px;
+    }
+    .cell {
+      width: 100%;
+      height: 100%;
+      background: #cdc1b4;
+      border-radius: 3px;
+    }
+    .tile {
+      position: absolute;
+      width: 100px;
+      height: 100px;
+      padding: 5px;
+      box-sizing: border-box;
+      line-height: 1.2em;
+      font-size: 16px;
+      overflow: hidden;
+      font-weight: bold;
+      text-align: center;
+      border-radius: 3px;
+      transition: transform 0.2s ease-in-out;
+    }
+    /* Tile Colors */
+    .tile-2    { background: #eee4da; color: #776e65; }
+    .tile-4    { background: #ede0c8; color: #776e65; }
+    .tile-8    { background: #f2b179; color: #f9f6f2; }
+    .tile-16   { background: #f59563; color: #f9f6f2; }
+    .tile-32   { background: #f67c5f; color: #f9f6f2; }
+    .tile-64   { background: #f65e3b; color: #f9f6f2; }
+    .tile-128  { background: #edcf72; color: #f9f6f2; font-size:14px; }
+    .tile-256  { background: #edcc61; color: #f9f6f2; font-size:14px; }
+    .tile-512  { background: #edc850; color: #f9f6f2; font-size:14px; }
+    .tile-1024 { background: #edc53f; color: #f9f6f2; font-size:12px; }
+    .tile-2048 { background: #edc22e; color: #f9f6f2; font-size:12px; }
+
+    /* Jeopardy Styles */
+    table {
+      margin: 20px auto;
+      border-collapse: collapse;
+    }
+    td, th {
+      border: 1px solid #999;
+      padding: 20px;
+      width: 140px;
+      text-align: center;
+      cursor: pointer;
+      background: #fff;
+    }
+    th { background: #f0e6db; }
+    td:hover { background: #e8ded2; }
+    #question, #answer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 1.2em;
+    }
+
+    /* Jeopardy Links List */
+    #jeopardy-games ul {
+      list-style: none;
+      padding: 0;
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    #jeopardy-games li {
+      display: inline-block;
+      margin: 0 15px;
+    }
+    #jeopardy-games a {
+      color: #e67e22;
+      text-decoration: none;
+      font-weight: bold;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1 class="title">APA7 2048 Games</h1>
-        <div class="game-list">
-            <div class="game-item">
-                <div class="game-title">APA7 Research Steps (6x6)</div>
-                <div class="game-description">
-                    Play a 6x6 2048 game to learn APA7 research steps, from finding dependent variables to submitting journal papers.
-                </div>
-                <a href="./APA7_2048_6x6.html" class="game-button">Play 6x6 Game</a>
-            </div>
-            <div class="game-item">
-                <div class="game-title">APA7 Research Steps (8x8)</div>
-                <div class="game-description">
-                    Try an 8x8 2048 game with APA7 research steps. More challenging but may feel cramped on smaller screens.
-                </div>
-                <a href="./APA7_2048_8x8.html" class="game-button">Play 8x8 Game</a>
-            </div>
-            <div class="game-item">
-                <div class="game-title">APA7 Tense Usage (5x5)</div>
-                <div class="game-description">
-                    Master APA7 tense usage with a 5x5 2048 game, covering past, present, and present perfect in paper sections.
-                </div>
-                <a href="./APA7_Tense_2048_5x5.html" class="game-button">Play 5x5 Game</a>
-            </div>
-        </div>
-        <div class="instructions">
-            <p>Use arrow keys or swipe to move tiles in each game.</p>
-            <p>Merge tiles to progress through APA7 research or tense usage steps!</p>
-        </div>
-    </div>
+  <h1>學術英文遊戲化學習<br/>Gamification of EAP</h1>
+  <nav>
+    <a href="#game2048">2048: Tense Rules</a> |
+    <a href="#jeopardy-games">Jeopardy Games</a>
+  </nav>
+
+  <section id="game2048">
+    <h2>2048: Verb‐Tense Rules</h2>
+    <div id="game"></div>
+  </section>
+
+  <section id="jeopardy-games">
+    <h2>Jeopardy Games</h2>
+    <ul>
+      <li><a href="#jeopardy">Basic Jeopardy: Verb Tenses</a></li>
+      <li><a href="post-workshop-jeopardy.html">Post-Workshop Jeopardy</a></li>
+      <li><a href="bigboss-jeopardy.html">魔王大挑戰 Jeopardy</a></li>
+    </ul>
+  </section>
+
+  <section id="jeopardy">
+    <h2>Basic Jeopardy: SOP Verb Tenses</h2>
+    <table id="board">
+      <thead>
+        <tr>
+          <th>Abstract</th><th>Introduction</th><th>Lit Review</th><th>Method</th><th>Results</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td data-cat="Abstract" data-val="100">100</td>
+          <td data-cat="Intro"    data-val="100">100</td>
+          <td data-cat="Lit"      data-val="100">100</td>
+          <td data-cat="Method"   data-val="100">100</td>
+          <td data-cat="Results"  data-val="100">100</td>
+        </tr>
+        <tr>
+          <td data-cat="Abstract" data-val="200">200</td>
+          <td data-cat="Intro"    data-val="200">200</td>
+          <td data-cat="Lit"      data-val="200">200</td>
+          <td data-cat="Method"   data-val="200">200</td>
+          <td data-cat="Results"  data-val="200">200</td>
+        </tr>
+        <tr>
+          <td data-cat="Abstract" data-val="300">300</td>
+          <td data-cat="Intro"    data-val="300">300</td>
+          <td data-cat="Lit"      data-val="300">300</td>
+          <td data-cat="Method"   data-val="300">300</td>
+          <td data-cat="Results"  data-val="300">300</td>
+        </tr>
+        <tr>
+          <td data-cat="Abstract" data-val="400">400</td>
+          <td data-cat="Intro"    data-val="400">400</td>
+          <td data-cat="Lit"      data-val="400">400</td>
+          <td data-cat="Method"   data-val="400">400</td>
+          <td data-cat="Results"  data-val="400">400</td>
+        </tr>
+        <tr>
+          <td data-cat="Abstract" data-val="500">500</td>
+          <td data-cat="Intro"    data-val="500">500</td>
+          <td data-cat="Lit"      data-val="500">500</td>
+          <td data-cat="Method"   data-val="500">500</td>
+          <td data-cat="Results"  data-val="500">500</td>
+        </tr>
+      </tbody>
+    </table>
+    <div id="question"></div>
+    <div id="answer"></div>
+  </section>
+
+  <script>
+    // 2048 Game Logic
+    const size=5; let grid; const game=document.getElementById('game');
+    const ruleMap={2:"Abstract–Past",4:"Abstract–Present",8:"Intro–Present",16:"Intro–PresentPerfect",32:"Lit–Past",64:"Lit–Present",128:"Method–Past",256:"Method–Present",512:"Results–Past",1024:"Results–Present",2048:"Discussion–Past"};
+    function init(){grid=Array.from({length:size},()=>Array(size).fill(0));game.innerHTML='';for(let i=0;i<size*size;i++){let c=document.createElement('div');c.className='cell';game.appendChild(c);}addTile();addTile();draw();}
+    function addTile(){let e=[];for(let r=0;r<size;r++)for(let c=0;c<size;c++)if(grid[r][c]===0)e.push({r,c});if(!e.length)return;let{r,c}=e[Math.floor(Math.random()*e.length)];grid[r][c]=Math.random()<.9?2:4;}
+    function draw(){document.querySelectorAll('.tile').forEach(t=>t.remove());for(let r=0;r<size;r++)for(let c=0;c<size;c++){let v=grid[r][c];if(v){let t=document.createElement('div');t.className=`tile tile-${v}`;t.style.transform=`translate(${c*100}px,${r*100}px)`;t.textContent=ruleMap[v];game.appendChild(t);}}}
+    function slide(row){let a=row.filter(v=>v);for(let i=0;i<a.length-1;i++)if(a[i]===a[i+1]){a[i]*=2;a[i+1]=0;}a=a.filter(v=>v);while(a.length<size)a.push(0);return a;}
+    function rot(m){let r=m.map(_=>Array(size).fill(0));for(let i=0;i<size;i++)for(let j=0;j<size;j++)r[j][size-1-i]=m[i][j];return r;}
+    function move(d){let m=grid;for(let i=0;i<d;i++)m=rot(m);let nm=m.map(slide);for(let i=0;i<(4-d)%4;i++)nm=rot(nm);if(JSON.stringify(nm)!==JSON.stringify(grid)){grid=nm;addTile();draw();if(checkOver())alert('Game Over');}}
+    function checkOver(){for(let r=0;r<size;r++)for(let c=0;c<size;c++)if(grid[r][c]===0)return!1;for(let r=0;r<size;r++)for(let c=0;c<size-1;c++)if(grid[r][c]===grid[r][c+1])return!1;for(let c=0;c<size;c++)for(let r=0;r<size-1;r++)if(grid[r][c]===grid[r+1][c])return!1;return!0;}
+    document.addEventListener('keydown',e=>{'ArrowLeft'==e.key?move(0):'ArrowUp'==e.key?move(1):'ArrowRight'==e.key?move(2):'ArrowDown'==e.key&&move(3)});
+    init();
+    // Jeopardy Logic
+    const qa={Abstract:{100:{q:'...?',a:'...'}},/* omitted for brevity */};
+    document.querySelectorAll('#board td').forEach(c=>c.onclick=()=>{let cat=c.dataset.cat,val=c.dataset.val,item=qa[cat][val];if(!item)return;c.textContent='';document.getElementById('question').textContent=item.q;document.getElementById('answer').textContent='Answer: '+item.a;});
+  </script>
 </body>
 </html>
+

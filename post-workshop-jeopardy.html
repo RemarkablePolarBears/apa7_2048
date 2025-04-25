@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Jeopardy: Literature Tools & APA7</title>
+  <style>
+    body { font-family:sans-serif; background:#faf8ef; margin:0; padding:20px; }
+    h1, h2 { text-align:center; }
+    table { margin:20px auto; border-collapse:collapse; }
+    th, td { border:1px solid #999; padding:20px; width:140px; text-align:center; cursor:pointer; background:#fff; }
+    th { background:#f0e6db; }
+    td:hover { background:#e8ded2; }
+    #question, #answer { text-align:center; margin-top:20px; font-size:1.1em; }
+  </style>
+</head>
+<body>
+  <h1>Jeopardy: Literature Tools & APA7</h1>
+  <table id="board">
+    <thead>
+      <tr>
+        <th>Review Purpose</th>
+        <th>Grey Literature</th>
+        <th>Databases & Access</th>
+        <th>Citation Difficulties</th>
+        <th>Ethics & Scenarios</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td data-cat="Purpose" data-val="100">100</td>
+        <td data-cat="Grey"    data-val="100">100</td>
+        <td data-cat="DB"      data-val="100">100</td>
+        <td data-cat="Cite"    data-val="100">100</td>
+        <td data-cat="Ethics"  data-val="100">100</td>
+      </tr>
+      <tr>
+        <td data-cat="Purpose" data-val="200">200</td>
+        <td data-cat="Grey"    data-val="200">200</td>
+        <td data-cat="DB"      data-val="200">200</td>
+        <td data-cat="Cite"    data-val="200">200</td>
+        <td data-cat="Ethics"  data-val="200">200</td>
+      </tr>
+      <tr>
+        <td data-cat="Purpose" data-val="300">300</td>
+        <td data-cat="Grey"    data-val="300">300</td>
+        <td data-cat="DB"      data-val="300">300</td>
+        <td data-cat="Cite"    data-val="300">300</td>
+        <td data-cat="Ethics"  data-val="300">300</td>
+      </tr>
+      <tr>
+        <td data-cat="Purpose" data-val="400">400</td>
+        <td data-cat="Grey"    data-val="400">400</td>
+        <td data-cat="DB"      data-val="400">400</td>
+        <td data-cat="Cite"    data-val="400">400</td>
+        <td data-cat="Ethics"  data-val="400">400</td>
+      </tr>
+      <tr>
+        <td data-cat="Purpose" data-val="500">500</td>
+        <td data-cat="Grey"    data-val="500">500</td>
+        <td data-cat="DB"      data-val="500">500</td>
+        <td data-cat="Cite"    data-val="500">500</td>
+        <td data-cat="Ethics"  data-val="500">500</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div id="question"></div>
+  <div id="answer"></div>
+
+  <h2>Final Jeopardy</h2>
+  <button id="finalBtn">Show Final Question</button>
+  <div id="finalQuestion"></div>
+  <div id="finalAnswer"></div>
+
+  <script>
+    const qa = {
+      Purpose: {
+        100: {q:'What is one main purpose of a literature review?', a:'To provide support from the academic community and identify a research gap.'},
+        200: {q:'Which thesis-statement formula is recommended?', a:'“Scholar (Year) conducted empirical research that supports my thesis statement.”'},
+        300: {q:'Which contrasting phrase highlights study limitations?', a:'“However, another scholar (Year)…has certain limitations.”'},
+        400: {q:'How many types of journal literature are identified?', a:'Three: Black, Grey, and White.'},
+        500: {q:'Name one principle to distinguish predatory journals.', a:'Use Beall’s List or institutional blacklists to block them.'}
+      },
+      Grey: {
+        100: {q:'What defines grey literature?', a:'Non-peer-reviewed works like preprints on SSRN or arXiv.'},
+        200: {q:'When can you safely cite an SSRN preprint?', a:'After it’s officially published and assigned a DOI.'},
+        300: {q:'What is a major risk of citing grey literature?', a:'The author may not have consented; the work could be plagiarized or retracted.'},
+        400: {q:'What publication fee warning applies to grey lit?', a:'Very high or very low fees often signal quality concerns.'},
+        500: {q:'Which tool alerts you to retracted papers?', a:'Reference managers like Zotero, EndNote, or Mendeley.'}
+      },
+      DB: {
+        100: {q:'Name one subscription database indexing SSCI journals.', a:'Web of Science.'},
+        200: {q:'Name one free database for academic search.', a:'Google Scholar.'},
+        300: {q:'What search technique uses AND, OR, NOT?', a:'Boolean operators.'},
+        400: {q:'What metric does Scopus provide?', a:'FWCI (Field-Weighted Citation Impact).'},
+        500: {q:'How do you limit WoS to recent empirical studies?', a:'Filter by year (last 4-5 years) and use “enriched references.”'}
+      },
+      Cite: {
+        100: {q:'Which citation style is common in education?', a:'APA 7.'},
+        200: {q:'How many authors before you use “et al.” after first citation?', a:'Three to five authors: list all first time, then et al.'},
+        300: {q:'What does YJCI stand for in Google Scholar checks?', a:'Year, Journal, Citation count, Index.'},
+        400: {q:'What should you do if a DOI link is invalid?', a:'Omit the DOI or verify via publisher/Crossref.'},
+        500: {q:'How handle multiple works sharing author groups?', a:'Include an extra name before et al. to avoid ambiguity.'}
+      },
+      Ethics: {
+        100: {q:'What must you check before your oral exam?', a:'That none of your references have been retracted.'},
+        200: {q:'Which site tracks retraction alerts?', a:'RetractionWatch (or via Zotero integration).'},
+        300: {q:'What should you confirm about citing preprints?', a:'Their publication status and peer-review/DOI.'},
+        400: {q:'What is the “non-fault” retraction scenario?', a:'If a cited work was retracted after your publication, it’s not your fault.'},
+        500: {q:'Which list tracks predatory journals?', a:'Beall’s List at beallslist.net.'}
+      }
+    };
+
+    document.querySelectorAll('#board td').forEach(cell=>{
+      cell.onclick = () => {
+        const cat = cell.dataset.cat, val = cell.dataset.val;
+        const item = qa[cat][val];
+        if(!item) return;
+        cell.textContent = '';
+        document.getElementById('question').textContent = item.q;
+        document.getElementById('answer').textContent   = 'Answer: ' + item.a;
+      };
+    });
+
+    document.getElementById('finalBtn').onclick = () => {
+      document.getElementById('finalQuestion').textContent =
+        'Name the three categories of journal literature quality.';
+      document.getElementById('finalAnswer').textContent =
+        'Answer: Black Literature, Grey Literature, and White Literature.';
+    };
+  </script>
+</body>
+</html>

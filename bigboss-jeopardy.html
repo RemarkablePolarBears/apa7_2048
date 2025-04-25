@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8"/>
+  <title>魔王大挑戰：APA7 與文獻注意 Jeopardy</title>
+  <style>
+    body { font-family:sans-serif; background:#faf8ef; margin:0; padding:20px; }
+    h1, h2 { text-align:center; }
+    table { margin:20px auto; border-collapse:collapse; }
+    th, td { border:1px solid #999; padding:20px; width:140px; text-align:center; cursor:pointer; background:#fff; }
+    th { background:#f0e6db; }
+    td:hover { background:#e8ded2; }
+    #question, #answer { text-align:center; margin-top:20px; font-size:1.1em; }
+  </style>
+</head>
+<body>
+  <h1>魔王大挑戰：APA7 與文獻注意 Jeopardy</h1>
+
+  <table id="board">
+    <thead>
+      <tr>
+        <th>文獻可信度</th>
+        <th>期刊品質</th>
+        <th>引用格式</th>
+        <th>作者人數規則</th>
+        <th>DOI & 出版狀態</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td data-cat="Cred" data-val="100">100</td>
+        <td data-cat="Qual" data-val="100">100</td>
+        <td data-cat="Fmt"  data-val="100">100</td>
+        <td data-cat="Auth" data-val="100">100</td>
+        <td data-cat="DOI"  data-val="100">100</td>
+      </tr>
+      <tr>
+        <td data-cat="Cred" data-val="200">200</td>
+        <td data-cat="Qual" data-val="200">200</td>
+        <td data-cat="Fmt"  data-val="200">200</td>
+        <td data-cat="Auth" data-val="200">200</td>
+        <td data-cat="DOI"  data-val="200">200</td>
+      </tr>
+      <tr>
+        <td data-cat="Cred" data-val="300">300</td>
+        <td data-cat="Qual" data-val="300">300</td>
+        <td data-cat="Fmt"  data-val="300">300</td>
+        <td data-cat="Auth" data-val="300">300</td>
+        <td data-cat="DOI"  data-val="300">300</td>
+      </tr>
+      <tr>
+        <td data-cat="Cred" data-val="400">400</td>
+        <td data-cat="Qual" data-val="400">400</td>
+        <td data-cat="Fmt"  data-val="400">400</td>
+        <td data-cat="Auth" data-val="400">400</td>
+        <td data-cat="DOI"  data-val="400">400</td>
+      </tr>
+      <tr>
+        <td data-cat="Cred" data-val="500">500</td>
+        <td data-cat="Qual" data-val="500">500</td>
+        <td data-cat="Fmt"  data-val="500">500</td>
+        <td data-cat="Auth" data-val="500">500</td>
+        <td data-cat="DOI"  data-val="500">500</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div id="question"></div>
+  <div id="answer"></div>
+
+  <h2>Final Jeopardy</h2>
+  <button id="finalBtn">出題！</button>
+  <div id="finalQuestion"></div>
+  <div id="finalAnswer"></div>
+
+  <script>
+    const qa = {
+      Cred: {
+        100: {q:'用哪個清單可過濾掠奪性期刊？',               a:'Beall’s List'},
+        200: {q:'引用後如何自動接收撤稿提醒？',               a:'使用 Zotero／EndNote 等管理軟體'},
+        300: {q:'SSRN 上的文章屬於哪類文獻？',               a:'灰色文獻 (Grey Literature)'},
+        400: {q:'引用前要確認期刊是否在 SSCI，常用哪個平台？', a:'Web of Science'},
+        500: {q:'出版費用過低或過高可能暗示什麼？',           a:'品質疑慮或掠奪性期刊'}
+      },
+      Qual: {
+        100: {q:'何謂「黑文獻」？',                          a:'掠奪性期刊 (Predatory Journals)'},
+        200: {q:'何謂「白文獻」？',                          a:'高品質、經同儕審查期刊 (e.g. SSCI Q1)'},
+        300: {q:'Mega Journals 與掠奪性期刊不同在哪？',      a:'不等同，Mega 可能非掠奪性'},
+        400: {q:'哪三大索引代表高品質期刊？',               a:'SSCI、SCI、AHCI'},
+        500: {q:'五大出版商是哪五家？',                     a:'Springer、Elsevier、Wiley、Sage、Taylor & Francis'}
+      },
+      Fmt: {
+        100: {q:'APA7 中三到五位作者，首次 in-text 要列出幾位？', a:'列出所有作者'},
+        200: {q:'六位以上作者 in-text citation 只寫？',           a:'第一作者 et al.'},
+        300: {q:'同作者同年度多篇，如何區分？',               a:'在年份後加 a, b 等標記'},
+        400: {q:'無作者文獻 in-text citation 用什麼？',         a:'使用文獻標題'},
+        500: {q:'同姓不同首字母作者如何引用？',               a:'加上首字母區分 (E. Smith vs L. Smith)'}
+      },
+      Auth: {
+        100: {q:'參考文獻超過20位作者，要怎麼寫？',              a:'列前19位，省略號…，再最後一位作者'},
+        200: {q:'兩位作者的 narrative citation 格式？',           a:'Yeh and Bear (2023)'},
+        300: {q:'超過五位作者，narrative citation 格式？',        a:'Yeh et al. (2023)'},
+        400: {q:'超過五位作者，parenthetical 格式？',           a:'(Yeh et al., 2023)'},
+        500: {q:'多篇同作者群且 et al 相同，如何避免歧義？',     a:'多列出一位作者再加 et al.'}
+      },
+      DOI: {
+        100: {q:'APA7 DOI 前綴應使用？',                        a:'https://doi.org/'},
+        200: {q:'若 DOI link 無效，要怎麼做？',                  a:'驗證後再用或不放 DOI'},
+        300: {q:'SSRN 上的預印本，何時安全引用？',               a:'正式出版後且有 DOI 時'},
+        400: {q:'何時可引用 arXiv？',                          a:'已正式出版與同儕審查後'},
+        500: {q:'提交前如何確認文獻無撤稿？',                    a:'使用 RetractionWatch 或管理軟體提示'}
+      }
+    };
+
+    document.querySelectorAll('#board td').forEach(cell=>{
+      cell.onclick = () => {
+        const cat = cell.dataset.cat, val = cell.dataset.val;
+        const item = qa[cat][val];
+        if (!item) return;
+        cell.textContent = '';
+        document.getElementById('question').textContent = item.q;
+        document.getElementById('answer').textContent   = '答案：' + item.a;
+      };
+    });
+
+    document.getElementById('finalBtn').onclick = () => {
+      document.getElementById('finalQuestion').textContent =
+        'Final Jeopardy: 當文獻作者超過五位時，APA7 第一次 narrative in-text citation 如何格式？';
+      document.getElementById('finalAnswer').textContent =
+        '答案：第一作者姓氏 et al. (年份)';
+    };
+  </script>
+</body>
+</html>
