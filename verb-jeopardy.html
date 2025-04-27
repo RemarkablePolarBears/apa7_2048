@@ -1,0 +1,353 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <title>Basic: Verb Tenses Jeopardy</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #faf8ef;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+      color: #333;
+    }
+    h1 {
+      margin: 20px 0;
+      font-size: 1.8rem;
+    }
+    #verb-jeopardy {
+      text-align: center;
+    }
+    table {
+      margin: 20px auto;
+      border-collapse: collapse;
+    }
+    td, th {
+      border: 1px solid #999;
+      padding: 20px;
+      width: 140px;
+      text-align: center;
+      cursor: pointer;
+      background: #fff;
+    }
+    th {
+      background: #f0e6db;
+    }
+    td:hover {
+      background: #e8ded2;
+    }
+    td.disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    #question, #answer, #hint {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 1.2em;
+    }
+    #score, #timer, #high-score {
+      margin-top: 10px;
+      font-size: 1.2em;
+      font-weight: bold;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+      background: #3498db;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #2980b9;
+    }
+    #hint-button {
+      background: #f39c12;
+    }
+    #hint-button:hover {
+      background: #e67e22;
+    }
+    #reset-high-score {
+      background: #e74c3c;
+    }
+    #reset-high-score:hover {
+      background: #c0392b;
+    }
+    input[type="text"] {
+      padding: 10px;
+      margin: 10px;
+      width: 300px;
+      border: 1px solid #999;
+      border-radius: 5px;
+      font-size: 1em;
+    }
+  </style>
+</head>
+<body>
+  <h1>Basic: Verb Tenses Jeopardy</h1>
+  <div id="verb-jeopardy">
+    <div id="score">Score: <span id="score-value">0</span></div>
+    <div id="high-score">High Score: <span id="high-score-value">0</span></div>
+    <div id="timer">Time: <span id="timer-value">00:00</span></div>
+    <table id="board">
+      <thead>
+        <tr>
+          <th>Abstract</th>
+          <th>Introduction</th>
+          <th>Methods</th>
+          <th>Results</th>
+          <th>Discussion</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td data-cat="Abstract" data-val="100">100</td>
+          <td data-cat="Introduction" data-val="100">100</td>
+          <td data-cat="Methods" data-val="100">100</td>
+          <td data-cat="Results" data-val="100">100</td>
+          <td data-cat="Discussion" data-val="100">100</td>
+        </tr>
+        <tr>
+          <td data-cat="Abstract" data-val="200">200</td>
+          <td data-cat="Introduction" data-val="200">200</td>
+          <td data-cat="Methods" data-val="200">200</td>
+          <td data-cat="Results" data-val="200">200</td>
+          <td data-cat="Discussion" data-val="200">200</td>
+        </tr>
+        <tr>
+          <td data-cat="Abstract" data-val="300">300</td>
+          <td data-cat="Introduction" data-val="300">300</td>
+          <td data-cat="Methods" data-val="300">300</td>
+          <td data-cat="Results" data-val="300">300</td>
+          <td data-cat="Discussion" data-val="300">300</td>
+        </tr>
+        <tr>
+          <td data-cat="Abstract" data-val="400">400</td>
+          <td data-cat="Introduction" data-val="400">400</td>
+          <td data-cat="Methods" data-val="400">400</td>
+          <td data-cat="Results" data-val="400">400</td>
+          <td data-cat="Discussion" data-val="400">400</td>
+        </tr>
+        <tr>
+          <td data-cat="Abstract" data-val="500">500</td>
+          <td data-cat="Introduction" data-val="500">500</td>
+          <td data-cat="Methods" data-val="500">500</td>
+          <td data-cat="Results" data-val="500">500</td>
+          <td data-cat="Discussion" data-val="500">500</td>
+        </tr>
+      </tbody>
+    </table>
+    <div id="question"></div>
+    <div id="answer-input" style="display: none;">
+      <input type="text" id="user-answer" placeholder="輸入你的答案..." />
+      <button id="submit-answer" onclick="submitAnswer()">Submit Answer</button>
+      <button id="hint-button" onclick="showHint()">Show Hint (-10 points)</button>
+    </div>
+    <div id="hint" style="display: none;"></div>
+    <div id="answer" style="display: none;"></div>
+    <button id="reset-high-score" onclick="resetHighScore()">Reset High Score</button>
+  </div>
+
+  <script>
+    const questions = {
+      Abstract: {
+        100: { question: "What tense should you use to summarize the main findings in an abstract?", answer: "past tense", hint: "The findings are from a completed study." },
+        200: { question: "What tense is used to state the purpose of the study in an abstract?", answer: "present tense", hint: "The purpose is a general statement about the study." },
+        300: { question: "How should you describe the methods briefly in an abstract?", answer: "past tense", hint: "Methods describe what you did in the study." },
+        400: { question: "What tense is appropriate for stating the implications in an abstract?", answer: "present tense", hint: "Implications are about current or future relevance." },
+        500: { question: "How can you ensure tense consistency in a concise abstract?", answer: "use past tense for findings and present tense for purpose and implications", hint: "Match the tense to the purpose of each sentence." }
+      },
+      Introduction: {
+        100: { question: "What tense is typically used to describe the background context in an introduction?", answer: "present tense", hint: "Background context reflects current knowledge." },
+        200: { question: "What tense should you use when citing past studies in the introduction?", answer: "past tense", hint: "The studies were conducted in the past." },
+        300: { question: "How do you state the research gap in the introduction?", answer: "present tense", hint: "The gap exists now." },
+        400: { question: "What tense is used to outline the objectives of your study in the introduction?", answer: "present tense", hint: "Objectives are about what the study aims to do." },
+        500: { question: "How can you balance tenses when transitioning from past studies to your research purpose?", answer: "use past tense for studies and present tense for your purpose", hint: "Switch tenses based on the context of the sentence." }
+      },
+      Methods: {
+        100: { question: "What tense should you use to describe the participants in the methods section?", answer: "past tense", hint: "The study has already been conducted." },
+        200: { question: "What tense is used for describing the procedures in the methods section?", answer: "past tense", hint: "Procedures are actions you completed." },
+        300: { question: "How do you report the materials used in the methods section?", answer: "past tense", hint: "Materials were used during the study." },
+        400: { question: "What tense should you use when explaining the data collection process?", answer: "past tense", hint: "Data collection happened in the past." },
+        500: { question: "How can you ensure clarity in the methods section with verb tenses?", answer: "consistently use past tense for all completed actions", hint: "Keep the tense uniform for past actions." }
+      },
+      Results: {
+        100: { question: "What tense is used to report the findings in the results section?", answer: "past tense", hint: "Findings are from a completed analysis." },
+        200: { question: "What tense should you use when describing statistical tests in the results?", answer: "past tense", hint: "The tests were performed in the past." },
+        300: { question: "How do you present trends observed in the data in the results section?", answer: "past tense", hint: "Trends were observed during analysis." },
+        400: { question: "What tense is appropriate for summarizing key outcomes in the results?", answer: "past tense", hint: "Outcomes are from the study you conducted." },
+        500: { question: "How can you avoid tense errors when reporting complex results?", answer: "stick to past tense for all findings and analyses", hint: "Uniformity prevents confusion." }
+      },
+      Discussion: {
+        100: { question: "What tense is used to interpret the results in the discussion section?", answer: "present tense", hint: "Interpretation reflects current understanding." },
+        200: { question: "What tense should you use when comparing your findings to past studies?", answer: "past tense", hint: "Past studies were conducted before your study." },
+        300: { question: "How do you discuss the implications of your findings in the discussion?", answer: "present tense", hint: "Implications are relevant now." },
+        400: { question: "What tense is used to suggest future research in the discussion section?", answer: "present tense", hint: "Suggestions are for future actions." },
+        500: { question: "How can you effectively transition between tenses in the discussion section?", answer: "use past tense for your findings and present tense for implications", hint: "Match the tense to the context of the discussion." }
+      }
+    };
+
+    let score = 0;
+    let highScore = localStorage.getItem('verbJeopardyHighScore') ? parseInt(localStorage.getItem('verbJeopardyHighScore')) : 0;
+    const answered = new Set();
+    let currentQuestion = null;
+    let currentValue = 0;
+    let timerInterval = null;
+    let secondsElapsed = 0;
+
+    // Initialize high score display
+    document.getElementById('high-score-value').textContent = highScore;
+
+    // Start timer
+    function startTimer() {
+      timerInterval = setInterval(() => {
+        secondsElapsed++;
+        const minutes = Math.floor(secondsElapsed / 60);
+        const seconds = secondsElapsed % 60;
+        document.getElementById('timer-value').textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      }, 1000);
+    }
+
+    // Stop timer
+    function stopTimer() {
+      clearInterval(timerInterval);
+    }
+
+    // Check if game is over
+    function checkGameOver() {
+      if (answered.size === 25) { // 5 categories * 5 values = 25 cells
+        stopTimer();
+        if (score > highScore) {
+          highScore = score;
+          localStorage.setItem('verbJeopardyHighScore', highScore);
+          document.getElementById('high-score-value').textContent = highScore;
+          alert("Game Over! New High Score: " + highScore);
+        } else {
+          alert("Game Over! Your Score: " + score);
+        }
+      }
+    }
+
+    // Reset high score
+    function resetHighScore() {
+      highScore = 0;
+      localStorage.setItem('verbJeopardyHighScore', highScore);
+      document.getElementById('high-score-value').textContent = highScore;
+    }
+
+    function showQuestion(cat, val) {
+      const key = `${cat}-${val}`;
+      if (answered.has(key)) return;
+
+      // Start timer on first question
+      if (answered.size === 0) {
+        startTimer();
+      }
+
+      const q = questions[cat][val];
+      document.getElementById('question').textContent = q.question;
+      document.getElementById('answer').textContent = `Correct Answer: ${q.answer}`;
+      document.getElementById('answer').style.display = 'none';
+      document.getElementById('hint').style.display = 'none';
+      document.getElementById('answer-input').style.display = 'block';
+      document.getElementById('user-answer').value = '';
+
+      answered.add(key);
+      const cell = document.querySelector(`td[data-cat="${cat}"][data-val="${val}"]`);
+      cell.classList.add('disabled');
+      cell.style.cursor = 'not-allowed';
+
+      currentQuestion = q;
+      currentValue = parseInt(val);
+
+      checkGameOver();
+    }
+
+    function showHint() {
+      if (!currentQuestion) return;
+      document.getElementById('hint').textContent = `Hint: ${currentQuestion.hint}`;
+      document.getElementById('hint').style.display = 'block';
+      score = Math.max(0, score - 10); // Deduct 10 points, but don't go below 0
+      document.getElementById('score-value').textContent = score;
+    }
+
+    function submitAnswer() {
+      const userAnswer = document.getElementById('user-answer').value.trim().toLowerCase();
+      const correctAnswer = currentQuestion.answer.trim().toLowerCase();
+
+      document.getElementById('answer').style.display = 'block';
+      document.getElementById('answer-input').style.display = 'none';
+      document.getElementById('hint').style.display = 'none';
+
+      if (userAnswer === correctAnswer) {
+        score += currentValue;
+        alert("Correct! You've earned " + currentValue + " points.");
+      } else {
+        alert("Incorrect. The correct answer is shown below.");
+      }
+
+      document.getElementById('score-value').textContent = score;
+      currentQuestion = null;
+      currentValue = 0;
+
+      checkGameOver();
+    }
+
+    const cells = document.querySelectorAll('#board td');
+    cells.forEach(cell => {
+      cell.addEventListener('click', () => {
+        const cat = cell.getAttribute('data-cat');
+        const val = cell.getAttribute('data-val');
+        showQuestion(cat, val);
+      });
+    });
+
+    document.getElementById('user-answer').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        submitAnswer();
+      }
+    });
+  </script>
+</body>
+</html>
