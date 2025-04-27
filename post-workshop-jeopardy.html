@@ -1,133 +1,353 @@
-<!DOCTYPE html>
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8"/>
-  <title>Jeopardy: Literature Tools & APA7</title>
+  <meta charset="UTF-8" />
+  <title>Post-Workshop Jeopardy</title>
   <style>
-    body { font-family:sans-serif; background:#faf8ef; margin:0; padding:20px; }
-    h1, h2 { text-align:center; }
-    table { margin:20px auto; border-collapse:collapse; }
-    th, td { border:1px solid #999; padding:20px; width:140px; text-align:center; cursor:pointer; background:#fff; }
-    th { background:#f0e6db; }
-    td:hover { background:#e8ded2; }
-    #question, #answer { text-align:center; margin-top:20px; font-size:1.1em; }
+    body {
+      font-family: sans-serif;
+      background: #faf8ef;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+      color: #333;
+    }
+    h1 {
+      margin: 20px 0;
+      font-size: 1.8rem;
+    }
+    #post-workshop-jeopardy {
+      text-align: center;
+    }
+    table {
+      margin: 20px auto;
+      border-collapse: collapse;
+    }
+    td, th {
+      border: 1px solid #999;
+      padding: 20px;
+      width: 140px;
+      text-align: center;
+      cursor: pointer;
+      background: #fff;
+    }
+    th {
+      background: #f0e6db;
+    }
+    td:hover {
+      background: #e8ded2;
+    }
+    td.disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    #question, #answer, #hint {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 1.2em;
+    }
+    #score, #timer, #high-score {
+      margin-top: 10px;
+      font-size: 1.2em;
+      font-weight: bold;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+      background: #3498db;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #2980b9;
+    }
+    #hint-button {
+      background: #f39c12;
+    }
+    #hint-button:hover {
+      background: #e67e22;
+    }
+    #reset-high-score {
+      background: #e74c3c;
+    }
+    #reset-high-score:hover {
+      background: #c0392b;
+    }
+    input[type="text"] {
+      padding: 10px;
+      margin: 10px;
+      width: 300px;
+      border: 1px solid #999;
+      border-radius: 5px;
+      font-size: 1em;
+    }
   </style>
 </head>
 <body>
-  <h1>Jeopardy: Literature Tools & APA7</h1>
-  <table id="board">
-    <thead>
-      <tr>
-        <th>Review Purpose</th>
-        <th>Grey Literature</th>
-        <th>Databases & Access</th>
-        <th>Citation Difficulties</th>
-        <th>Ethics & Scenarios</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td data-cat="Purpose" data-val="100">100</td>
-        <td data-cat="Grey"    data-val="100">100</td>
-        <td data-cat="DB"      data-val="100">100</td>
-        <td data-cat="Cite"    data-val="100">100</td>
-        <td data-cat="Ethics"  data-val="100">100</td>
-      </tr>
-      <tr>
-        <td data-cat="Purpose" data-val="200">200</td>
-        <td data-cat="Grey"    data-val="200">200</td>
-        <td data-cat="DB"      data-val="200">200</td>
-        <td data-cat="Cite"    data-val="200">200</td>
-        <td data-cat="Ethics"  data-val="200">200</td>
-      </tr>
-      <tr>
-        <td data-cat="Purpose" data-val="300">300</td>
-        <td data-cat="Grey"    data-val="300">300</td>
-        <td data-cat="DB"      data-val="300">300</td>
-        <td data-cat="Cite"    data-val="300">300</td>
-        <td data-cat="Ethics"  data-val="300">300</td>
-      </tr>
-      <tr>
-        <td data-cat="Purpose" data-val="400">400</td>
-        <td data-cat="Grey"    data-val="400">400</td>
-        <td data-cat="DB"      data-val="400">400</td>
-        <td data-cat="Cite"    data-val="400">400</td>
-        <td data-cat="Ethics"  data-val="400">400</td>
-      </tr>
-      <tr>
-        <td data-cat="Purpose" data-val="500">500</td>
-        <td data-cat="Grey"    data-val="500">500</td>
-        <td data-cat="DB"      data-val="500">500</td>
-        <td data-cat="Cite"    data-val="500">500</td>
-        <td data-cat="Ethics"  data-val="500">500</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <div id="question"></div>
-  <div id="answer"></div>
-
-  <h2>Final Jeopardy</h2>
-  <button id="finalBtn">Show Final Question</button>
-  <div id="finalQuestion"></div>
-  <div id="finalAnswer"></div>
+  <h1>Post-Workshop Jeopardy</h1>
+  <div id="post-workshop-jeopardy">
+    <div id="score">Score: <span id="score-value">0</span></div>
+    <div id="high-score">High Score: <span id="high-score-value">0</span></div>
+    <div id="timer">Time: <span id="timer-value">00:00</span></div>
+    <table id="board">
+      <thead>
+        <tr>
+          <th>Verb Tenses</th>
+          <th>Structure</th>
+          <th>Citation</th>
+          <th>Academic Tone</th>
+          <th>Practical Tips</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td data-cat="VerbTenses" data-val="100">100</td>
+          <td data-cat="Structure"  data-val="100">100</td>
+          <td data-cat="Citation"   data-val="100">100</td>
+          <td data-cat="Tone"       data-val="100">100</td>
+          <td data-cat="Tips"       data-val="100">100</td>
+        </tr>
+        <tr>
+          <td data-cat="VerbTenses" data-val="200">200</td>
+          <td data-cat="Structure"  data-val="200">200</td>
+          <td data-cat="Citation"   data-val="200">200</td>
+          <td data-cat="Tone"       data-val="200">200</td>
+          <td data-cat="Tips"       data-val="200">200</td>
+        </tr>
+        <tr>
+          <td data-cat="VerbTenses" data-val="300">300</td>
+          <td data-cat="Structure"  data-val="300">300</td>
+          <td data-cat="Citation"   data-val="300">300</td>
+          <td data-cat="Tone"       data-val="300">300</td>
+          <td data-cat="Tips"       data-val="300">300</td>
+        </tr>
+        <tr>
+          <td data-cat="VerbTenses" data-val="400">400</td>
+          <td data-cat="Structure"  data-val="400">400</td>
+          <td data-cat="Citation"   data-val="400">400</td>
+          <td data-cat="Tone"       data-val="400">400</td>
+          <td data-cat="Tips"       data-val="400">400</td>
+        </tr>
+        <tr>
+          <td data-cat="VerbTenses" data-val="500">500</td>
+          <td data-cat="Structure"  data-val="500">500</td>
+          <td data-cat="Citation"   data-val="500">500</td>
+          <td data-cat="Tone"       data-val="500">500</td>
+          <td data-cat="Tips"       data-val="500">500</td>
+        </tr>
+      </tbody>
+    </table>
+    <div id="question"></div>
+    <div id="answer-input" style="display: none;">
+      <input type="text" id="user-answer" placeholder="輸入你的答案..." />
+      <button id="submit-answer" onclick="submitAnswer()">Submit Answer</button>
+      <button id="hint-button" onclick="showHint()">Show Hint (-10 points)</button>
+    </div>
+    <div id="hint" style="display: none;"></div>
+    <div id="answer" style="display: none;"></div>
+    <button id="reset-high-score" onclick="resetHighScore()">Reset High Score</button>
+  </div>
 
   <script>
-    const qa = {
-      Purpose: {
-        100: {q:'What is one main purpose of a literature review?', a:'To provide support from the academic community and identify a research gap.'},
-        200: {q:'Which thesis-statement formula is recommended?', a:'“Scholar (Year) conducted empirical research that supports my thesis statement.”'},
-        300: {q:'Which contrasting phrase highlights study limitations?', a:'“However, another scholar (Year)…has certain limitations.”'},
-        400: {q:'How many types of journal literature are identified?', a:'Three: Black, Grey, and White.'},
-        500: {q:'Name one principle to distinguish predatory journals.', a:'Use Beall’s List or institutional blacklists to block them.'}
+    const questions = {
+      VerbTenses: {
+        100: { question: "What tense should you use when reporting your study’s findings in the results section?", answer: "past tense", hint: "Think about the tense used for actions that have already happened." },
+        200: { question: "What tense is appropriate for general statements about the research field in an introduction?", answer: "present tense", hint: "This tense is used for facts that are generally true." },
+        300: { question: "How can you decide which tense to use when summarizing past research in a literature review?", answer: "use past tense for specific findings and present tense for general trends", hint: "Consider whether you're talking about specific studies or overall patterns." },
+        400: { question: "Why might you use present tense in the discussion section?", answer: "to discuss the implications of your findings", hint: "This tense is used when talking about what the results mean now." },
+        500: { question: "How can you ensure consistency in verb tenses across sections of your paper?", answer: "follow the purpose of each section and proofread for consistency", hint: "Each section has a specific role that determines the tense." }
       },
-      Grey: {
-        100: {q:'What defines grey literature?', a:'Non-peer-reviewed works like preprints on SSRN or arXiv.'},
-        200: {q:'When can you safely cite an SSRN preprint?', a:'After it’s officially published and assigned a DOI.'},
-        300: {q:'What is a major risk of citing grey literature?', a:'The author may not have consented; the work could be plagiarized or retracted.'},
-        400: {q:'What publication fee warning applies to grey lit?', a:'Very high or very low fees often signal quality concerns.'},
-        500: {q:'Which tool alerts you to retracted papers?', a:'Reference managers like Zotero, EndNote, or Mendeley.'}
+      Structure: {
+        100: { question: "What is one key element you should include in your introduction after the workshop?", answer: "a clear research gap or problem statement", hint: "It identifies what’s missing in existing research." },
+        200: { question: "How can the CARS model help you structure your introduction?", answer: "it helps you establish a territory identify a niche and occupy it with your research", hint: "CARS stands for Create a Research Space." },
+        300: { question: "What should you focus on in the discussion section after learning from the workshop?", answer: "interpreting results comparing with past studies and discussing implications", hint: "Think about explaining your findings and their broader impact." },
+        400: { question: "How can you improve the flow between paragraphs in your paper?", answer: "use transitional phrases and ensure each paragraph logically follows the previous one", hint: "Words like 'furthermore' or 'in contrast' can help." },
+        500: { question: "What is a common mistake in structuring a literature review, and how can you avoid it?", answer: "listing studies without synthesis avoid by grouping studies by theme and discussing their relevance", hint: "Don’t just summarize; organize and connect the studies." }
       },
-      DB: {
-        100: {q:'Name one subscription database indexing SSCI journals.', a:'Web of Science.'},
-        200: {q:'Name one free database for academic search.', a:'Google Scholar.'},
-        300: {q:'What search technique uses AND, OR, NOT?', a:'Boolean operators.'},
-        400: {q:'What metric does Scopus provide?', a:'FWCI (Field-Weighted Citation Impact).'},
-        500: {q:'How do you limit WoS to recent empirical studies?', a:'Filter by year (last 4-5 years) and use “enriched references.”'}
+      Citation: {
+        100: { question: "What is one key takeaway from the workshop about citing sources in APA 7?", answer: "always include author and year in in-text citations", hint: "Think about the basic format of an APA citation." },
+        200: { question: "How can you avoid plagiarism when paraphrasing a source?", answer: "rewrite the idea in your own words and cite the source", hint: "Even if you change the words, you still need to give credit." },
+        300: { question: "What should you do if you can’t find the publication date of a source?", answer: "use n.d. in the citation", hint: "n.d. stands for 'no date'." },
+        400: { question: "How can you ensure your reference list is correctly formatted in APA 7?", answer: "follow the format authors year title source include doi if available and use hanging indent", hint: "Check the order: author, year, title, and source." },
+        500: { question: "What is a common citation error to avoid after the workshop?", answer: "forgetting to cite all sources even when paraphrasing always include a citation", hint: "Every idea that isn’t yours needs a citation." }
       },
-      Cite: {
-        100: {q:'Which citation style is common in education?', a:'APA 7.'},
-        200: {q:'How many authors before you use “et al.” after first citation?', a:'Three to five authors: list all first time, then et al.'},
-        300: {q:'What does YJCI stand for in Google Scholar checks?', a:'Year, Journal, Citation count, Index.'},
-        400: {q:'What should you do if a DOI link is invalid?', a:'Omit the DOI or verify via publisher/Crossref.'},
-        500: {q:'How handle multiple works sharing author groups?', a:'Include an extra name before et al. to avoid ambiguity.'}
+      Tone: {
+        100: { question: "What is one way to maintain an academic tone in your writing?", answer: "avoid informal language", hint: "Stay away from slang or contractions." },
+        200: { question: "How can you make your writing more objective after the workshop?", answer: "use evidence-based statements", hint: "Focus on facts, not opinions." },
+        300: { question: "What is a hedging phrase, and how can it improve your academic tone?", answer: "a phrase like may indicate it shows caution and avoids absolute claims", hint: "It helps you sound less certain and more scholarly." },
+        400: { question: "How can you avoid overgeneralization in your writing?", answer: "use qualifiers and support claims with evidence", hint: "Words like 'some' or 'often' can help." },
+        500: { question: "What is one tone-related feedback you received in the workshop, and how can you apply it?", answer: "avoid personal pronouns apply by focusing on the research", hint: "Use 'the study' instead of 'I'." }
       },
-      Ethics: {
-        100: {q:'What must you check before your oral exam?', a:'That none of your references have been retracted.'},
-        200: {q:'Which site tracks retraction alerts?', a:'RetractionWatch (or via Zotero integration).'},
-        300: {q:'What should you confirm about citing preprints?', a:'Their publication status and peer-review/DOI.'},
-        400: {q:'What is the “non-fault” retraction scenario?', a:'If a cited work was retracted after your publication, it’s not your fault.'},
-        500: {q:'Which list tracks predatory journals?', a:'Beall’s List at beallslist.net.'}
+      Tips: {
+        100: { question: "What is one practical tip from the workshop for improving your writing process?", answer: "create an outline before writing to organize your ideas", hint: "It helps you plan your paper’s structure." },
+        200: { question: "How can you use feedback from the workshop to improve your drafts?", answer: "revise based on specific advice such as improving clarity or fixing verb tenses", hint: "Look at the suggestions given during the workshop." },
+        300: { question: "What is a good strategy for managing time during the writing process?", answer: "set specific goals for each writing session", hint: "Break your work into smaller tasks." },
+        400: { question: "How can you ensure clarity in your academic writing?", answer: "use simple precise language and avoid unnecessary jargon", hint: "Keep your sentences straightforward." },
+        500: { question: "What is one tool or resource recommended in the workshop to help with academic writing?", answer: "use a citation manager like zotero to organize references", hint: "It helps you keep track of your sources." }
       }
     };
 
-    document.querySelectorAll('#board td').forEach(cell=>{
-      cell.onclick = () => {
-        const cat = cell.dataset.cat, val = cell.dataset.val;
-        const item = qa[cat][val];
-        if(!item) return;
-        cell.textContent = '';
-        document.getElementById('question').textContent = item.q;
-        document.getElementById('answer').textContent   = 'Answer: ' + item.a;
-      };
+    let score = 0;
+    let highScore = localStorage.getItem('postWorkshopHighScore') ? parseInt(localStorage.getItem('postWorkshopHighScore')) : 0;
+    const answered = new Set();
+    let currentQuestion = null;
+    let currentValue = 0;
+    let timerInterval = null;
+    let secondsElapsed = 0;
+
+    // Initialize high score display
+    document.getElementById('high-score-value').textContent = highScore;
+
+    // Start timer
+    function startTimer() {
+      timerInterval = setInterval(() => {
+        secondsElapsed++;
+        const minutes = Math.floor(secondsElapsed / 60);
+        const seconds = secondsElapsed % 60;
+        document.getElementById('timer-value').textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      }, 1000);
+    }
+
+    // Stop timer
+    function stopTimer() {
+      clearInterval(timerInterval);
+    }
+
+    // Check if game is over
+    function checkGameOver() {
+      if (answered.size === 25) { // 5 categories * 5 values = 25 cells
+        stopTimer();
+        if (score > highScore) {
+          highScore = score;
+          localStorage.setItem('postWorkshopHighScore', highScore);
+          document.getElementById('high-score-value').textContent = highScore;
+          alert("Game Over! New High Score: " + highScore);
+        } else {
+          alert("Game Over! Your Score: " + score);
+        }
+      }
+    }
+
+    // Reset high score
+    function resetHighScore() {
+      highScore = 0;
+      localStorage.setItem('postWorkshopHighScore', highScore);
+      document.getElementById('high-score-value').textContent = highScore;
+    }
+
+    function showQuestion(cat, val) {
+      const key = `${cat}-${val}`;
+      if (answered.has(key)) return;
+
+      // Start timer on first question
+      if (answered.size === 0) {
+        startTimer();
+      }
+
+      const q = questions[cat][val];
+      document.getElementById('question').textContent = q.question;
+      document.getElementById('answer').textContent = `Correct Answer: ${q.answer}`;
+      document.getElementById('answer').style.display = 'none';
+      document.getElementById('hint').style.display = 'none';
+      document.getElementById('answer-input').style.display = 'block';
+      document.getElementById('user-answer').value = '';
+
+      answered.add(key);
+      const cell = document.querySelector(`td[data-cat="${cat}"][data-val="${val}"]`);
+      cell.classList.add('disabled');
+      cell.style.cursor = 'not-allowed';
+
+      currentQuestion = q;
+      currentValue = parseInt(val);
+
+      checkGameOver();
+    }
+
+    function showHint() {
+      if (!currentQuestion) return;
+      document.getElementById('hint').textContent = `Hint: ${currentQuestion.hint}`;
+      document.getElementById('hint').style.display = 'block';
+      score = Math.max(0, score - 10); // Deduct 10 points, but don't go below 0
+      document.getElementById('score-value').textContent = score;
+    }
+
+    function submitAnswer() {
+      const userAnswer = document.getElementById('user-answer').value.trim().toLowerCase();
+      const correctAnswer = currentQuestion.answer.trim().toLowerCase();
+
+      document.getElementById('answer').style.display = 'block';
+      document.getElementById('answer-input').style.display = 'none';
+      document.getElementById('hint').style.display = 'none';
+
+      if (userAnswer === correctAnswer) {
+        score += currentValue;
+        alert("Correct! You've earned " + currentValue + " points.");
+      } else {
+        alert("Incorrect. The correct answer is shown below.");
+      }
+
+      document.getElementById('score-value').textContent = score;
+      currentQuestion = null;
+      currentValue = 0;
+
+      checkGameOver();
+    }
+
+    const cells = document.querySelectorAll('#board td');
+    cells.forEach(cell => {
+      cell.addEventListener('click', () => {
+        const cat = cell.getAttribute('data-cat');
+        const val = cell.getAttribute('data-val');
+        showQuestion(cat, val);
+      });
     });
 
-    document.getElementById('finalBtn').onclick = () => {
-      document.getElementById('finalQuestion').textContent =
-        'Name the three categories of journal literature quality.';
-      document.getElementById('finalAnswer').textContent =
-        'Answer: Black Literature, Grey Literature, and White Literature.';
-    };
+    document.getElementById('user-answer').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        submitAnswer();
+      }
+    });
   </script>
 </body>
 </html>

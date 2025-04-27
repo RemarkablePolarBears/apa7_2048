@@ -1,134 +1,353 @@
-<!DOCTYPE html>
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8"/>
-  <title>魔王大挑戰：APA7 與文獻注意 Jeopardy</title>
+  <meta charset="UTF-8" />
+  <title>魔王大挑戰 Jeopardy</title>
   <style>
-    body { font-family:sans-serif; background:#faf8ef; margin:0; padding:20px; }
-    h1, h2 { text-align:center; }
-    table { margin:20px auto; border-collapse:collapse; }
-    th, td { border:1px solid #999; padding:20px; width:140px; text-align:center; cursor:pointer; background:#fff; }
-    th { background:#f0e6db; }
-    td:hover { background:#e8ded2; }
-    #question, #answer { text-align:center; margin-top:20px; font-size:1.1em; }
+    body {
+      font-family: sans-serif;
+      background: #faf8ef;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+      color: #333;
+    }
+    h1 {
+      margin: 20px 0;
+      font-size: 1.8rem;
+    }
+    #bigboss-jeopardy {
+      text-align: center;
+    }
+    table {
+      margin: 20px auto;
+      border-collapse: collapse;
+    }
+    td, th {
+      border: 1px solid #999;
+      padding: 20px;
+      width: 140px;
+      text-align: center;
+      cursor: pointer;
+      background: #fff;
+    }
+    th {
+      background: #f0e6db;
+    }
+    td:hover {
+      background: #e8ded2;
+    }
+    td.disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    #question, #answer, #hint {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 1.2em;
+    }
+    #score, #timer, #high-score {
+      margin-top: 10px;
+      font-size: 1.2em;
+      font-weight: bold;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+      background: #3498db;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #2980b9;
+    }
+    #hint-button {
+      background: #f39c12;
+    }
+    #hint-button:hover {
+      background: #e67e22;
+    }
+    #reset-high-score {
+      background: #e74c3c;
+    }
+    #reset-high-score:hover {
+      background: #c0392b;
+    }
+    input[type="text"] {
+      padding: 10px;
+      margin: 10px;
+      width: 300px;
+      border: 1px solid #999;
+      border-radius: 5px;
+      font-size: 1em;
+    }
   </style>
 </head>
 <body>
-  <h1>魔王大挑戰：APA7 與文獻注意 Jeopardy</h1>
-
-  <table id="board">
-    <thead>
-      <tr>
-        <th>文獻可信度</th>
-        <th>期刊品質</th>
-        <th>引用格式</th>
-        <th>作者人數規則</th>
-        <th>DOI & 出版狀態</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td data-cat="Cred" data-val="100">100</td>
-        <td data-cat="Qual" data-val="100">100</td>
-        <td data-cat="Fmt"  data-val="100">100</td>
-        <td data-cat="Auth" data-val="100">100</td>
-        <td data-cat="DOI"  data-val="100">100</td>
-      </tr>
-      <tr>
-        <td data-cat="Cred" data-val="200">200</td>
-        <td data-cat="Qual" data-val="200">200</td>
-        <td data-cat="Fmt"  data-val="200">200</td>
-        <td data-cat="Auth" data-val="200">200</td>
-        <td data-cat="DOI"  data-val="200">200</td>
-      </tr>
-      <tr>
-        <td data-cat="Cred" data-val="300">300</td>
-        <td data-cat="Qual" data-val="300">300</td>
-        <td data-cat="Fmt"  data-val="300">300</td>
-        <td data-cat="Auth" data-val="300">300</td>
-        <td data-cat="DOI"  data-val="300">300</td>
-      </tr>
-      <tr>
-        <td data-cat="Cred" data-val="400">400</td>
-        <td data-cat="Qual" data-val="400">400</td>
-        <td data-cat="Fmt"  data-val="400">400</td>
-        <td data-cat="Auth" data-val="400">400</td>
-        <td data-cat="DOI"  data-val="400">400</td>
-      </tr>
-      <tr>
-        <td data-cat="Cred" data-val="500">500</td>
-        <td data-cat="Qual" data-val="500">500</td>
-        <td data-cat="Fmt"  data-val="500">500</td>
-        <td data-cat="Auth" data-val="500">500</td>
-        <td data-cat="DOI"  data-val="500">500</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <div id="question"></div>
-  <div id="answer"></div>
-
-  <h2>Final Jeopardy</h2>
-  <button id="finalBtn">出題！</button>
-  <div id="finalQuestion"></div>
-  <div id="finalAnswer"></div>
+  <h1>魔王大挑戰 Jeopardy</h1>
+  <div id="bigboss-jeopardy">
+    <div id="score">Score: <span id="score-value">0</span></div>
+    <div id="high-score">High Score: <span id="high-score-value">0</span></div>
+    <div id="timer">Time: <span id="timer-value">00:00</span></div>
+    <table id="board">
+      <thead>
+        <tr>
+          <th>Argumentation</th>
+          <th>Citation</th>
+          <th>Academic Tone</th>
+          <th>Structure</th>
+          <th>Data Presentation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td data-cat="Argumentation" data-val="100">100</td>
+          <td data-cat="Citation"     data-val="100">100</td>
+          <td data-cat="Tone"         data-val="100">100</td>
+          <td data-cat="Structure"    data-val="100">100</td>
+          <td data-cat="Data"         data-val="100">100</td>
+        </tr>
+        <tr>
+          <td data-cat="Argumentation" data-val="200">200</td>
+          <td data-cat="Citation"     data-val="200">200</td>
+          <td data-cat="Tone"         data-val="200">200</td>
+          <td data-cat="Structure"    data-val="200">200</td>
+          <td data-cat="Data"         data-val="200">200</td>
+        </tr>
+        <tr>
+          <td data-cat="Argumentation" data-val="300">300</td>
+          <td data-cat="Citation"     data-val="300">300</td>
+          <td data-cat="Tone"         data-val="300">300</td>
+          <td data-cat="Structure"    data-val="300">300</td>
+          <td data-cat="Data"         data-val="300">300</td>
+        </tr>
+        <tr>
+          <td data-cat="Argumentation" data-val="400">400</td>
+          <td data-cat="Citation"     data-val="400">400</td>
+          <td data-cat="Tone"         data-val="400">400</td>
+          <td data-cat="Structure"    data-val="400">400</td>
+          <td data-cat="Data"         data-val="400">400</td>
+        </tr>
+        <tr>
+          <td data-cat="Argumentation" data-val="500">500</td>
+          <td data-cat="Citation"     data-val="500">500</td>
+          <td data-cat="Tone"         data-val="500">500</td>
+          <td data-cat="Structure"    data-val="500">500</td>
+          <td data-cat="Data"         data-val="500">500</td>
+        </tr>
+      </tbody>
+    </table>
+    <div id="question"></div>
+    <div id="answer-input" style="display: none;">
+      <input type="text" id="user-answer" placeholder="輸入你的答案..." />
+      <button id="submit-answer" onclick="submitAnswer()">Submit Answer</button>
+      <button id="hint-button" onclick="showHint()">Show Hint (-10 points)</button>
+    </div>
+    <div id="hint" style="display: none;"></div>
+    <div id="answer" style="display: none;"></div>
+    <button id="reset-high-score" onclick="resetHighScore()">Reset High Score</button>
+  </div>
 
   <script>
-    const qa = {
-      Cred: {
-        100: {q:'用哪個清單可過濾掠奪性期刊？',               a:'Beall’s List'},
-        200: {q:'引用後如何自動接收撤稿提醒？',               a:'使用 Zotero／EndNote 等管理軟體'},
-        300: {q:'SSRN 上的文章屬於哪類文獻？',               a:'灰色文獻 (Grey Literature)'},
-        400: {q:'引用前要確認期刊是否在 SSCI，常用哪個平台？', a:'Web of Science'},
-        500: {q:'出版費用過低或過高可能暗示什麼？',           a:'品質疑慮或掠奪性期刊'}
+    const questions = {
+      Argumentation: {
+        100: { question: "What is the purpose of including a counterargument in academic writing?", answer: "to address potential objections and strengthen your argument", hint: "It helps make your argument more persuasive." },
+        200: { question: "What tense is typically used to present a counterargument?", answer: "present tense", hint: "Think about how you describe others' views now." },
+        300: { question: "What should follow a counterargument to make your argument more convincing?", answer: "a rebuttal that explains why your position is stronger", hint: "You need to respond to the counterargument." },
+        400: { question: "How can you introduce a counterargument without weakening your own position?", answer: "use phrases like while some may argue or although evidence suggests", hint: "Use specific phrases to stay balanced." },
+        500: { question: "What is a common logical fallacy to avoid when addressing a counterargument?", answer: "strawman fallacy", hint: "It involves misrepresenting the opposing view." }
       },
-      Qual: {
-        100: {q:'何謂「黑文獻」？',                          a:'掠奪性期刊 (Predatory Journals)'},
-        200: {q:'何謂「白文獻」？',                          a:'高品質、經同儕審查期刊 (e.g. SSCI Q1)'},
-        300: {q:'Mega Journals 與掠奪性期刊不同在哪？',      a:'不等同，Mega 可能非掠奪性'},
-        400: {q:'哪三大索引代表高品質期刊？',               a:'SSCI、SCI、AHCI'},
-        500: {q:'五大出版商是哪五家？',                     a:'Springer、Elsevier、Wiley、Sage、Taylor & Francis'}
+      Citation: {
+        100: { question: "What is the correct format for an in-text citation in APA 7 with one author?", answer: "author year", hint: "It includes the author’s name and the year of publication." },
+        200: { question: "How do you cite a source with three or more authors in APA 7?", answer: "use et al after the first author’s name", hint: "Simplify the citation with a Latin phrase." },
+        300: { question: "What should you include in a reference entry for a journal article in APA 7?", answer: "authors year article title journal name volume issue page range and doi if available", hint: "Think about all the details needed to find the article." },
+        400: { question: "When must you include a page number in an APA 7 in-text citation?", answer: "when quoting directly or referring to a specific part of the source", hint: "It’s needed for direct quotes." },
+        500: { question: "How do you cite a source with no author in APA 7?", answer: "use the title or a shortened version and year", hint: "Replace the author with the title." }
       },
-      Fmt: {
-        100: {q:'APA7 中三到五位作者，首次 in-text 要列出幾位？', a:'列出所有作者'},
-        200: {q:'六位以上作者 in-text citation 只寫？',           a:'第一作者 et al.'},
-        300: {q:'同作者同年度多篇，如何區分？',               a:'在年份後加 a, b 等標記'},
-        400: {q:'無作者文獻 in-text citation 用什麼？',         a:'使用文獻標題'},
-        500: {q:'同姓不同首字母作者如何引用？',               a:'加上首字母區分 (E. Smith vs L. Smith)'}
+      Tone: {
+        100: { question: "What type of language should you avoid in academic writing to maintain formality?", answer: "informal language slang or contractions", hint: "Think about keeping your tone professional." },
+        200: { question: "What pronoun should you generally avoid in academic writing to maintain objectivity?", answer: "first-person pronouns like i or we", hint: "Focus on the research, not yourself." },
+        300: { question: "How can you make a statement more objective in academic writing?", answer: "use evidence-based claims", hint: "Base your statements on data or studies." },
+        400: { question: "What is a hedging expression, and why is it used in academic writing?", answer: "a phrase like may suggest or appears to used to show caution and avoid overgeneralization", hint: "It helps you avoid sounding too certain." },
+        500: { question: "How can you avoid bias in academic writing when discussing controversial topics?", answer: "present multiple perspectives and support claims with credible evidence", hint: "Show fairness by considering all sides." }
       },
-      Auth: {
-        100: {q:'參考文獻超過20位作者，要怎麼寫？',              a:'列前19位，省略號…，再最後一位作者'},
-        200: {q:'兩位作者的 narrative citation 格式？',           a:'Yeh and Bear (2023)'},
-        300: {q:'超過五位作者，narrative citation 格式？',        a:'Yeh et al. (2023)'},
-        400: {q:'超過五位作者，parenthetical 格式？',           a:'(Yeh et al., 2023)'},
-        500: {q:'多篇同作者群且 et al 相同，如何避免歧義？',     a:'多列出一位作者再加 et al.'}
+      Structure: {
+        100: { question: "What is the purpose of the introduction in an academic paper?", answer: "to provide background state the research gap and outline the study’s purpose", hint: "It sets the stage for your paper." },
+        200: { question: "What does the CARS model stand for in structuring an introduction?", answer: "create a research space", hint: "It’s about establishing a territory and niche." },
+        300: { question: "Where should the thesis statement typically appear in an academic paper?", answer: "at the end of the introduction", hint: "It’s the last part of your introduction." },
+        400: { question: "What should the discussion section of a paper address?", answer: "interpret results compare with past studies and discuss implications limitations", hint: "It explains what your findings mean." },
+        500: { question: "How can you ensure coherence between sections of a paper?", answer: "use transitions maintain a logical flow and refer back to the research objectives", hint: "Think about connecting your ideas smoothly." }
       },
-      DOI: {
-        100: {q:'APA7 DOI 前綴應使用？',                        a:'https://doi.org/'},
-        200: {q:'若 DOI link 無效，要怎麼做？',                  a:'驗證後再用或不放 DOI'},
-        300: {q:'SSRN 上的預印本，何時安全引用？',               a:'正式出版後且有 DOI 時'},
-        400: {q:'何時可引用 arXiv？',                          a:'已正式出版與同儕審查後'},
-        500: {q:'提交前如何確認文獻無撤稿？',                    a:'使用 RetractionWatch 或管理軟體提示'}
+      Data: {
+        100: { question: "What tense is used to describe data in a table or figure?", answer: "present tense", hint: "It’s about what the data shows now." },
+        200: { question: "What should you include when referring to a table or figure in the text?", answer: "a brief description of its content and a reference", hint: "Mention what the table or figure shows." },
+        300: { question: "Why should you avoid overloading a table with too much data?", answer: "to ensure clarity and make it easier for readers to interpret", hint: "Keep it simple for the reader." },
+        400: { question: "What is the difference between presenting data in a table versus a figure?", answer: "tables show precise values figures highlight trends or patterns", hint: "One is for exact numbers, the other for visuals." },
+        500: { question: "How can you ensure ethical data presentation in academic writing?", answer: "avoid manipulation and cite the source of the data", hint: "Be honest and give credit." }
       }
     };
 
-    document.querySelectorAll('#board td').forEach(cell=>{
-      cell.onclick = () => {
-        const cat = cell.dataset.cat, val = cell.dataset.val;
-        const item = qa[cat][val];
-        if (!item) return;
-        cell.textContent = '';
-        document.getElementById('question').textContent = item.q;
-        document.getElementById('answer').textContent   = '答案：' + item.a;
-      };
+    let score = 0;
+    let highScore = localStorage.getItem('bigbossHighScore') ? parseInt(localStorage.getItem('bigbossHighScore')) : 0;
+    const answered = new Set();
+    let currentQuestion = null;
+    let currentValue = 0;
+    let timerInterval = null;
+    let secondsElapsed = 0;
+
+    // Initialize high score display
+    document.getElementById('high-score-value').textContent = highScore;
+
+    // Start timer
+    function startTimer() {
+      timerInterval = setInterval(() => {
+        secondsElapsed++;
+        const minutes = Math.floor(secondsElapsed / 60);
+        const seconds = secondsElapsed % 60;
+        document.getElementById('timer-value').textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      }, 1000);
+    }
+
+    // Stop timer
+    function stopTimer() {
+      clearInterval(timerInterval);
+    }
+
+    // Check if game is over
+    function checkGameOver() {
+      if (answered.size === 25) { // 5 categories * 5 values = 25 cells
+        stopTimer();
+        if (score > highScore) {
+          highScore = score;
+          localStorage.setItem('bigbossHighScore', highScore);
+          document.getElementById('high-score-value').textContent = highScore;
+          alert("Game Over! New High Score: " + highScore);
+        } else {
+          alert("Game Over! Your Score: " + score);
+        }
+      }
+    }
+
+    // Reset high score
+    function resetHighScore() {
+      highScore = 0;
+      localStorage.setItem('bigbossHighScore', highScore);
+      document.getElementById('high-score-value').textContent = highScore;
+    }
+
+    function showQuestion(cat, val) {
+      const key = `${cat}-${val}`;
+      if (answered.has(key)) return;
+
+      // Start timer on first question
+      if (answered.size === 0) {
+        startTimer();
+      }
+
+      const q = questions[cat][val];
+      document.getElementById('question').textContent = q.question;
+      document.getElementById('answer').textContent = `Correct Answer: ${q.answer}`;
+      document.getElementById('answer').style.display = 'none';
+      document.getElementById('hint').style.display = 'none';
+      document.getElementById('answer-input').style.display = 'block';
+      document.getElementById('user-answer').value = '';
+
+      answered.add(key);
+      const cell = document.querySelector(`td[data-cat="${cat}"][data-val="${val}"]`);
+      cell.classList.add('disabled');
+      cell.style.cursor = 'not-allowed';
+
+      currentQuestion = q;
+      currentValue = parseInt(val);
+
+      checkGameOver();
+    }
+
+    function showHint() {
+      if (!currentQuestion) return;
+      document.getElementById('hint').textContent = `Hint: ${currentQuestion.hint}`;
+      document.getElementById('hint').style.display = 'block';
+      score = Math.max(0, score - 10); // Deduct 10 points, but don't go below 0
+      document.getElementById('score-value').textContent = score;
+    }
+
+    function submitAnswer() {
+      const userAnswer = document.getElementById('user-answer').value.trim().toLowerCase();
+      const correctAnswer = currentQuestion.answer.trim().toLowerCase();
+
+      document.getElementById('answer').style.display = 'block';
+      document.getElementById('answer-input').style.display = 'none';
+      document.getElementById('hint').style.display = 'none';
+
+      if (userAnswer === correctAnswer) {
+        score += currentValue;
+        alert("Correct! You've earned " + currentValue + " points.");
+      } else {
+        alert("Incorrect. The correct answer is shown below.");
+      }
+
+      document.getElementById('score-value').textContent = score;
+      currentQuestion = null;
+      currentValue = 0;
+
+      checkGameOver();
+    }
+
+    const cells = document.querySelectorAll('#board td');
+    cells.forEach(cell => {
+      cell.addEventListener('click', () => {
+        const cat = cell.getAttribute('data-cat');
+        const val = cell.getAttribute('data-val');
+        showQuestion(cat, val);
+      });
     });
 
-    document.getElementById('finalBtn').onclick = () => {
-      document.getElementById('finalQuestion').textContent =
-        'Final Jeopardy: 當文獻作者超過五位時，APA7 第一次 narrative in-text citation 如何格式？';
-      document.getElementById('finalAnswer').textContent =
-        '答案：第一作者姓氏 et al. (年份)';
-    };
+    document.getElementById('user-answer').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        submitAnswer();
+      }
+    });
   </script>
 </body>
 </html>
