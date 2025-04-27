@@ -1,0 +1,678 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>APA7 Solitaire - Bear Families Digital Literacy</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .theme-image {
+      max-width: 100%;
+      height: auto;
+      margin-bottom: 20px;
+    }
+    #game {
+      width: 100%;
+      max-width: 900px;
+      background: #2ecc71;
+      padding: 20px;
+      border-radius: 8px;
+      position: relative;
+    }
+    .top-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .stock-waste {
+      display: flex;
+      gap: 10px;
+    }
+    .foundations {
+      display: flex;
+      gap: 10px;
+    }
+    .pile {
+      width: 100px;
+      height: 140px;
+      background: #fff;
+      border: 2px dashed #27ae60;
+      border-radius: 4px;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .pile.foundation::before {
+      font-size: 3rem;
+      position: absolute;
+    }
+    #foundation-hearts::before {
+      content: '♥';
+      color: red;
+    }
+    #foundation-diamonds::before {
+      content: '♦';
+      color: red;
+    }
+    #foundation-clubs::before {
+      content: '♣';
+      color: black;
+    }
+    #foundation-spades::before {
+      content: '♠';
+      color: black;
+    }
+    .pile.droppable {
+      border-color: #27ae60;
+      background: #e8f5e9;
+    }
+    .pile.foundation.has-card::before {
+      content: none;
+    }
+    .tableau {
+      display: flex;
+      gap: 10px;
+      min-height: 140px;
+    }
+    .tableau-pile {
+      width: 100px;
+      min-height: 140px;
+      background: #ecf0f1;
+      border: 2px dashed #27ae60;
+      border-radius: 4px;
+      position: relative;
+    }
+    .card {
+      width: 100px;
+      height: 140px;
+      background: white;
+      border: 1px solid #333;
+      border-radius: 4px;
+      position: absolute;
+      cursor: move;
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.9rem;
+      text-align: center;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      padding: 5px;
+    }
+    .card.dragging {
+      opacity: 0.7;
+      z-index: 100;
+    }
+    .card.red {
+      color: red;
+    }
+    .card.black {
+      color: black;
+    }
+    .card.face-down {
+      background: #3498db;
+      color: transparent;
+    }
+    .card .top-left {
+      align-self: flex-start;
+      font-size: 1.2rem;
+      margin-left: 5px;
+    }
+    .card .message {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      font-size: 0.8rem;
+      padding: 5px;
+    }
+    .tooltip {
+      visibility: hidden;
+      width: 200px;
+      background-color: #555;
+      color: #fff;
+      text-align: center;
+      border-radius: 6px;
+      padding: 5px;
+      position: absolute;
+      z-index: 1;
+      bottom: 125%;
+      left: 50%;
+      margin-left: -100px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .card:hover .tooltip {
+      visibility: visible;
+      opacity: 1;
+    }
+    #instructions {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      z-index: 200;
+      text-align: center;
+    }
+    #instructions button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      background: #3498db;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #instructions button:hover {
+      background: #2980b9;
+    }
+  </style>
+</head>
+<body>
+  <img src="bears_academic_writing_digital_literacy_cartoon.jpg" alt="Bears Learning Academic Writing" class="theme-image">
+  <h1>APA7 Solitaire - Bear Families Digital Literacy</h1>
+  <div id="game">
+    <div class="top-row">
+      <div class="stock-waste">
+        <div class="pile stock" id="stock"></div>
+        <div class="pile waste" id="waste"></div>
+      </div>
+      <div class="foundations">
+        <div class="pile foundation" id="foundation-hearts"></div>
+        <div class="pile foundation" id="foundation-diamonds"></div>
+        <div class="pile foundation" id="foundation-clubs"></div>
+        <div class="pile foundation" id="foundation-spades"></div>
+      </div>
+    </div>
+    <div class="tableau">
+      <div class="tableau-pile" id="tableau-1"></div>
+      <div class="tableau-pile" id="tableau-2"></div>
+      <div class="tableau-pile" id="tableau-3"></div>
+      <div class="tableau-pile" id="tableau-4"></div>
+      <div class="tableau-pile" id="tableau-5"></div>
+      <div class="tableau-pile" id="tableau-6"></div>
+      <div class="tableau-pile" id="tableau-7"></div>
+    </div>
+  </div>
+  <div id="instructions">
+    <p>Drag cards to play (red/black alternating in tableau, build foundations by suit A→7).</p>
+    <p>Double-click a card to auto-move to the foundation.</p>
+    <p>Click the stock to draw, or click empty stock to reset.</p>
+    <button onclick="hideInstructions()">Start Playing</button>
+  </div>
+  <script>
+    const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
+    const ranks = ['A', '2', '3', '4', '5', '6', '7'];
+    const bearActions = {
+      hearts: [
+        { action: "Use Zotero for citations", tooltip: "Zotero organizes references efficiently" },
+        { action: "Search Google Scholar", tooltip: "Find credible academic sources" },
+        { action: "Collaborate via Google Docs", tooltip: "Work with peers in real-time" },
+        { action: "Check grammar with Grammarly", tooltip: "Improve writing clarity" },
+        { action: "Use Overleaf for LaTeX", tooltip: "Format papers professionally" },
+        { action: "Join ResearchGate", tooltip: "Connect with researchers" },
+        { action: "Organize with Notion", tooltip: "Plan your research effectively" }
+      ],
+      diamonds: [
+        { action: "Access PubMed", tooltip: "Find medical research articles" },
+        { action: "Use EndNote for refs", tooltip: "Manage citations easily" },
+        { action: "Read JSTOR articles", tooltip: "Explore humanities research" },
+        { action: "Share via Dropbox", tooltip: "Securely share files" },
+        { action: "Use APA7 templates", tooltip: "Format papers correctly" },
+        { action: "Search library databases", tooltip: "Access university resources" },
+        { action: "Join academic forums", tooltip: "Discuss research topics" }
+      ],
+      clubs: [
+        { action: "Don’t cite unverified blogs", tooltip: "Blogs may lack credibility" },
+        { action: "Avoid outdated sources", tooltip: "Use recent research" },
+        { action: "Don’t plagiarize", tooltip: "Always cite properly" },
+        { action: "Avoid non-academic sites", tooltip: "Stick to scholarly sources" },
+        { action: "Don’t ignore peer reviews", tooltip: "Peer feedback improves work" },
+        { action: "Avoid biased sources", tooltip: "Check for objectivity" },
+        { action: "Don’t skip proofreading", tooltip: "Errors can undermine credibility" }
+      ],
+      spades: [
+        { action: "Avoid unsecure file sharing", tooltip: "Protect your data" },
+        { action: "Don’t over-rely on AI", tooltip: "Verify AI-generated content" },
+        { action: "Avoid public Wi-Fi", tooltip: "Risk of data theft" },
+        { action: "Don’t ignore updates", tooltip: "Keep software secure" },
+        { action: "Avoid fake journals", tooltip: "Check journal credibility" },
+        { action: "Don’t share passwords", tooltip: "Keep accounts safe" },
+        { action: "Avoid unencrypted email", tooltip: "Secure sensitive communication" }
+      ]
+    };
+    const bearNames = {
+      hearts: "Taiwan Black Bear",
+      diamonds: "Giant Panda",
+      clubs: "North American Brown Bear",
+      spades: "Polar Bear"
+    };
+
+    let deck = [];
+    let stock = [];
+    let waste = [];
+    let tableau = [[], [], [], [], [], [], []];
+    let foundations = { hearts: [], diamonds: [], clubs: [], spades: [] };
+
+    function createDeck() {
+      deck = [];
+      suits.forEach(suit => {
+        ranks.forEach((rank, index) => {
+          const action = bearActions[suit][index];
+          deck.push({
+            suit,
+            rank,
+            bear: bearNames[suit],
+            action: action.action,
+            tooltip: action.tooltip,
+            faceUp: false
+          });
+        });
+      });
+      deck = shuffle(deck);
+      console.log("Deck created:", deck);
+    }
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function dealCards() {
+      stock = [...deck];
+      for (let i = 0; i < 7; i++) {
+        for (let j = i; j < 7; j++) {
+          const card = stock.pop();
+          if (j === i) card.faceUp = true;
+          tableau[j].push(card);
+        }
+      }
+      renderGame();
+      console.log("Cards dealt:", { stock, tableau });
+    }
+
+    function renderGame() {
+      // Clear piles
+      document.querySelectorAll('.pile, .tableau-pile').forEach(pile => pile.innerHTML = '');
+
+      // Render stock
+      const stockPile = document.getElementById('stock');
+      if (stock.length > 0) {
+        const card = stock[stock.length - 1];
+        const cardElement = createCardElement(card);
+        cardElement.classList.add('face-down');
+        stockPile.appendChild(cardElement);
+      } else {
+        stockPile.addEventListener('click', resetStock);
+      }
+
+      // Render waste
+      const wastePile = document.getElementById('waste');
+      if (waste.length > 0) {
+        const card = waste[waste.length - 1];
+        const cardElement = createCardElement(card);
+        wastePile.appendChild(cardElement);
+      }
+
+      // Render foundations
+      suits.forEach(suit => {
+        const foundationPile = document.getElementById(`foundation-${suit}`);
+        if (foundations[suit].length > 0) {
+          const card = foundations[suit][foundations[suit].length - 1];
+          const cardElement = createCardElement(card);
+          foundationPile.appendChild(cardElement);
+          foundationPile.classList.add('has-card');
+        } else {
+          foundationPile.classList.remove('has-card');
+        }
+      });
+
+      // Render tableau
+      tableau.forEach((pile, index) => {
+        const tableauPile = document.getElementById(`tableau-${index + 1}`);
+        pile.forEach((card, cardIndex) => {
+          const cardElement = createCardElement(card);
+          cardElement.style.top = `${cardIndex * 20}px`;
+          if (!card.faceUp) cardElement.classList.add('face-down');
+          tableauPile.appendChild(cardElement);
+        });
+      });
+
+      // Add drag-and-drop and double-click listeners
+      addDragListeners();
+      addDoubleClickListeners();
+    }
+
+    function createCardElement(card) {
+      const cardElement = document.createElement('div');
+      cardElement.classList.add('card');
+      cardElement.classList.add(card.suit === 'hearts' || card.suit === 'diamonds' ? 'red' : 'black');
+      cardElement.setAttribute('data-suit', card.suit);
+      cardElement.setAttribute('data-rank', card.rank);
+      cardElement.innerHTML = `
+        <div class="top-left">${card.rank} ${card.suit === 'hearts' ? '♥' : card.suit === 'diamonds' ? '♦' : card.suit === 'clubs' ? '♣' : '♠'}</div>
+        <div class="message">
+          <div>${card.bear}</div>
+          <div>${card.action}</div>
+        </div>
+        <span class="tooltip">${card.tooltip}</span>
+      `;
+      return cardElement;
+    }
+
+    function addDragListeners() {
+      const cards = document.querySelectorAll('.card:not(.face-down)');
+      cards.forEach(card => {
+        card.draggable = true;
+        card.addEventListener('dragstart', dragStart);
+        card.addEventListener('dragend', dragEnd);
+      });
+
+      const piles = document.querySelectorAll('.pile, .tableau-pile');
+      piles.forEach(pile => {
+        pile.addEventListener('dragover', dragOver);
+        pile.addEventListener('drop', drop);
+        pile.addEventListener('dragleave', dragLeave);
+      });
+
+      const stockPile = document.getElementById('stock');
+      stockPile.removeEventListener('click', drawCard); // Prevent duplicate listeners
+      stockPile.addEventListener('click', drawCard);
+    }
+
+    function addDoubleClickListeners() {
+      const cards = document.querySelectorAll('.card:not(.face-down)');
+      cards.forEach(card => {
+        card.removeEventListener('dblclick', autoMoveToFoundation); // Prevent duplicate listeners
+        card.addEventListener('dblclick', autoMoveToFoundation);
+      });
+    }
+
+    let draggedCard = null;
+    let sourcePile = null;
+
+    function dragStart(e) {
+      draggedCard = e.target.closest('.card'); // Ensure we target the card element
+      if (!draggedCard) return;
+      sourcePile = draggedCard.parentElement;
+      draggedCard.classList.add('dragging');
+      highlightDroppableAreas();
+      console.log('Drag start:', draggedCard.dataset);
+    }
+
+    function dragEnd(e) {
+      if (draggedCard) {
+        draggedCard.classList.remove('dragging');
+      }
+      clearDroppableHighlights();
+      draggedCard = null;
+      sourcePile = null;
+    }
+
+    function dragOver(e) {
+      e.preventDefault();
+    }
+
+    function dragLeave(e) {
+      e.currentTarget.classList.remove('droppable');
+    }
+
+    function drop(e) {
+      e.preventDefault();
+      if (!draggedCard) return;
+
+      const targetPile = e.currentTarget;
+      const bearElement = draggedCard.querySelector('.message div:nth-child(1)');
+      const actionElement = draggedCard.querySelector('.message div:nth-child(2)');
+      const tooltipElement = draggedCard.querySelector('.tooltip');
+
+      if (!bearElement || !actionElement || !tooltipElement) {
+        console.error('Drop failed: Card elements not found', draggedCard);
+        return;
+      }
+
+      const cardData = {
+        suit: draggedCard.dataset.suit,
+        rank: draggedCard.dataset.rank,
+        faceUp: true,
+        bear: bearElement.textContent,
+        action: actionElement.textContent,
+        tooltip: tooltipElement.textContent
+      };
+
+      if (targetPile.classList.contains('foundation')) {
+        const suit = targetPile.id.split('-')[1];
+        if (cardData.suit !== suit) return;
+        const foundationCards = foundations[suit];
+        const lastRank = foundationCards.length ? foundationCards[foundationCards.length - 1].rank : null;
+        const rankIndex = ranks.indexOf(cardData.rank);
+        const expectedIndex = foundationCards.length;
+        if (rankIndex !== expectedIndex) return;
+
+        removeCardFromSource();
+        foundations[suit].push(cardData);
+      } else if (targetPile.classList.contains('tableau-pile')) {
+        const tableauIndex = parseInt(targetPile.id.split('-')[1]) - 1;
+        const targetCards = tableau[tableauIndex];
+        const lastCard = targetCards.length ? targetCards[targetCards.length - 1] : null;
+        const isRed = cardData.suit === 'hearts' || cardData.suit === 'diamonds';
+        const rankIndex = ranks.indexOf(cardData.rank);
+        if (lastCard) {
+          const lastIsRed = lastCard.suit === 'hearts' || lastCard.suit === 'diamonds';
+          const lastRankIndex = ranks.indexOf(lastCard.rank);
+          if (isRed === lastIsRed || rankIndex !== lastRankIndex - 1) return;
+        } else if (cardData.rank !== '7') return;
+
+        removeCardFromSource();
+        tableau[tableauIndex].push(cardData);
+      }
+
+      // Flip the last card in the source pile if necessary
+      if (sourcePile.classList.contains('tableau-pile')) {
+        const sourceIndex = parseInt(sourcePile.id.split('-')[1]) - 1;
+        const sourceCards = tableau[sourceIndex];
+        if (sourceCards.length > 0) {
+          sourceCards[sourceCards.length - 1].faceUp = true;
+        }
+      }
+
+      renderGame();
+      checkWin();
+    }
+
+    function autoMoveToFoundation(e) {
+      const card = e.target.closest('.card'); // Ensure we target the card element
+      if (!card) {
+        console.error('Double-click failed: Card element not found', e.target);
+        return;
+      }
+
+      const bearElement = card.querySelector('.message div:nth-child(1)');
+      const actionElement = card.querySelector('.message div:nth-child(2)');
+      const tooltipElement = card.querySelector('.tooltip');
+
+      if (!bearElement || !actionElement || !tooltipElement) {
+        console.error('Auto-move failed: Card elements not found', card);
+        return;
+      }
+
+      const cardData = {
+        suit: card.dataset.suit,
+        rank: card.dataset.rank,
+        faceUp: true,
+        bear: bearElement.textContent,
+        action: actionElement.textContent,
+        tooltip: tooltipElement.textContent
+      };
+
+      const suit = cardData.suit;
+      const foundationCards = foundations[suit];
+      const rankIndex = ranks.indexOf(cardData.rank);
+      const expectedIndex = foundationCards.length;
+      if (rankIndex === expectedIndex) {
+        sourcePile = card.parentElement;
+        removeCardFromSource();
+        foundations[suit].push(cardData);
+
+        // Flip the last card in the source pile if necessary
+        if (sourcePile.classList.contains('tableau-pile')) {
+          const sourceIndex = parseInt(sourcePile.id.split('-')[1]) - 1;
+          const sourceCards = tableau[sourceIndex];
+          if (sourceCards.length > 0) {
+            sourceCards[sourceCards.length - 1].faceUp = true;
+          }
+        }
+
+        renderGame();
+        checkWin();
+      }
+    }
+
+    function highlightDroppableAreas() {
+      if (!draggedCard) return;
+      const cardData = {
+        suit: draggedCard.dataset.suit,
+        rank: draggedCard.dataset.rank
+      };
+      const isRed = cardData.suit === 'hearts' || cardData.suit === 'diamonds';
+      const rankIndex = ranks.indexOf(cardData.rank);
+
+      // Highlight foundations
+      suits.forEach(suit => {
+        const foundationPile = document.getElementById(`foundation-${suit}`);
+        if (cardData.suit === suit) {
+          const foundationCards = foundations[suit];
+          const expectedIndex = foundationCards.length;
+          if (rankIndex === expectedIndex) {
+            foundationPile.classList.add('droppable');
+          }
+        }
+      });
+
+      // Highlight tableau
+      tableau.forEach((pile, index) => {
+        const tableauPile = document.getElementById(`tableau-${index + 1}`);
+        const lastCard = pile.length ? pile[pile.length - 1] : null;
+        if (lastCard) {
+          const lastIsRed = lastCard.suit === 'hearts' || lastCard.suit === 'diamonds';
+          const lastRankIndex = ranks.indexOf(lastCard.rank);
+          if (isRed !== lastIsRed && rankIndex === lastRankIndex - 1) {
+            tableauPile.classList.add('droppable');
+          }
+        } else if (cardData.rank === '7') {
+          tableauPile.classList.add('droppable');
+        }
+      });
+    }
+
+    function clearDroppableHighlights() {
+      document.querySelectorAll('.pile, .tableau-pile').forEach(pile => {
+        pile.classList.remove('droppable');
+      });
+    }
+
+    function removeCardFromSource() {
+      if (!sourcePile) return;
+      if (sourcePile.classList.contains('waste')) {
+        waste.pop();
+      } else if (sourcePile.classList.contains('tableau-pile')) {
+        const sourceIndex = parseInt(sourcePile.id.split('-')[1]) - 1;
+        tableau[sourceIndex].pop();
+      }
+    }
+
+    function drawCard() {
+      if (stock.length > 0) {
+        const card = stock.pop();
+        card.faceUp = true;
+        waste.push(card);
+        renderGame();
+      }
+    }
+
+    function resetStock() {
+      if (stock.length === 0) {
+        stock = waste.reverse();
+        waste = [];
+        stock.forEach(card => card.faceUp = false);
+        renderGame();
+      }
+    }
+
+    function checkWin() {
+      const allFoundationsFull = suits.every(suit => foundations[suit].length === 7);
+      if (allFoundationsFull) {
+        alert("Congratulations! You've won the game!");
+      }
+    }
+
+    function hideInstructions() {
+      document.getElementById('instructions').style.display = 'none';
+    }
+
+    // Initialize game
+    createDeck();
+    dealCards();
+  </script>
+</body>
+</html>
